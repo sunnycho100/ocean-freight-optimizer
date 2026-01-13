@@ -1,0 +1,42 @@
+
+Focus only on the Data-Cleaning tab and edit that tab.
+
+
+The inland transport data is structured as follows:
+POD | Container Type & Size | Transport Mode | Rate | Remark* | Destination | $
+
+
+A pivot table at H5 contains 20 FT Dry and 40 FT Dry ocean freight costs from Busan, South Korea to each destination.
+
+
+40 FT High Cube Dry uses the same cost as 40 FT Dry.
+
+
+
+
+Merge the left-hand inland table with the right-hand pivot table to calculate the total freight cost (ocean + land) for each route.
+
+
+Convert ocean freight from USD to EUR before summing.
+
+
+Create the following new columns:
+
+
+Ocean Freight
+
+
+Total Rate
+
+
+Notes
+
+
+
+
+For each destination, highlight in yellow the row with the minimum total cost from Busan.
+
+
+For BREMERHAVEN, HB, GERMANY and SALERNO, ITALY, add the note:
+estimated cost (ocean freight).
+

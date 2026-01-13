@@ -1,0 +1,87 @@
+{
+  "VALENCE, DROME, FRANCE": {
+    "locationCode": "FRVAF",
+    "pols": "",
+    "pods": "BEANR,FRFOS,FRLEH,NLRTM"
+  },
+  "ARQUES-LA-BATAILLE, FRANCE": {
+    "locationCode": "FRAQB",
+    "pols": "",
+    "pods": "BEANR,FRFOS,FRLEH,NLRTM"
+  },
+  "FUERTH, BY, GERMANY": {
+    "locationCode": "DEFUE",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "FORCHHEIM, BY, GERMANY": {
+    "locationCode": "DEFOH",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "MUENSTER, NW, GERMANY": {
+    "locationCode": "DEMUS",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "ORANIENBURG, BB, GERMANY": {
+    "locationCode": "DEORA",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "WEITERSTADT, HE, GERMANY": {
+    "locationCode": "DEWDT",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "DORTMUND, NW, GERMANY": {
+    "locationCode": "DEDTM",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "WORMS, RP, GERMANY": {
+    "locationCode": "DEWOR",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "DIETZENBACH, HE, GERMANY": {
+    "locationCode": "DEDIE",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  },
+  "TEVEROLA, ITALY": {
+    "locationCode": "ITTVY",
+    "pols": "",
+    "pods": "ITAOI,ITCVV,ITGIT,ITNAP,ITSAL"
+  },
+  "OEGSTGEEST, NETHERLANDS": {
+    "locationCode": "NLGSG",
+    "pols": "",
+    "pods": "BEANR,NLRTM"
+  },
+  "KOBIERZYCE, POLAND": {
+    "locationCode": "PLKYE",
+    "pols": "",
+    "pods": "BEANR,DEBRV,PLGDN,PLGDY,DEHAM,NLRTM"
+  },
+  "KOMAROM, HUNGARY": {
+    "locationCode": "HUKOM",
+    "pols": "",
+    "pods": "DEBRV,DEHAM,SIKOP"
+  },
+  "BAUMGARTENBERG, AUSTRIA": {
+    "locationCode": "ATBGT",
+    "pols": "",
+    "pods": "DEBRV,DEHAM"
+  },
+  "TAMPERE, FINLAND": {
+    "locationCode": "FITMP",
+    "pols": "",
+    "pods": "FIHEL,FIKTK,FIRAU"
+  },
+  "LEUTKIRCH IM ALLGAEU, BW, GERMANY": {
+    "locationCode": "DELEU",
+    "pols": "",
+    "pods": "BEANR,DEBRV,DEHAM,NLRTM,DEWVN"
+  }
+}

@@ -1,0 +1,17 @@
+Websites that provide Inland Tariff information
+
+Hapag-Lloyd
+https://www.hapag-lloyd.com/en/online-business/quotation/tariffs/inland-tariff.html?
+
+OOCL
+https://moc.oocl.com/wls_prs_rp/public/inlandTariff/search/display
+
+COSCO
+https://elines.coscoshipping.com/ebusiness/tariffForCoLtd/tarrifRate?
+
+
+
+
+
+회원가입 필요
+https://auth.cma-cgm.com/as/authorization.oauth2?client_id=webapp-must&redirect_uri=https%3A%2F%2Fwww.cma-cgm.com%2Fsignin-oidc&response_type=code&scope=email%20openid%20profile%20Ecom%3Awebapp-must-apl-anl-cnc%20ans%3Afe%3Aread%20ans%3Afe%3Awrite&code_challenge=mrbO01779TdTlvdAmmhgyyO0PKbdBTnxquLbB6xuPew&code_challenge_method=S256&state=OpenIdConnect.AuthenticationProperties%3DMducE_BnrPUelzYpPnimORdm8MXK-ef2qcXqDYL2e8H7dxJuctYqg42V71uPTUkdQLE6tqRXCXsv8JBoN9xK5Xx6L67E5dq0KW9X01lB45YHnYiXFXXKnrJ3rDeU8ykLvTDutl1zWmqc5sGobgGjIofcFXO4t0cipSVTM6TyDceJp8SRk1hq6R8WK9VE9MmDU7ZVMwGIS_3wWg693reHBBNS6dKznRzOn-Nfrln76j23QcGTPrGjirueypzmPZwnwMJcWS7h69T-VuVNzViEoXJ0wubOVOiFFt1iYMS5K32dKjOH3Vx425L13-ayQh1d-a0vJDpEALSFRNwKWYsURD6ukxWsxyD2M2ZhQeWw2pc%26Language%3Den-US%26actas%3Dfalse&response_mode=form_post&x-client-SKU=ID_NET472&x-client-ver=6.27.0.0

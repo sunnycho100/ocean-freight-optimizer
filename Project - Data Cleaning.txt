@@ -1,0 +1,84 @@
+Project - Data Cleaning
+
+We currently have information of: Country, POD, Type, Final Address in an excel spreadsheet, and on a website:
+
+https://ecomm.one-line.com/one-ecom/prices/rate-tariff/inland-search?applicationDate=2025-12-29&boundCode=I&cargoType=DR&destinationLocationName=FORCHHEIM%2C+BY%2C+GERMANY&destinationLocationCode=DEFOH&pols=&pods=BEANR%2CDEBRV%2CDEHAM%2CNLRTM%2CDEWVN&transportMode=B%2CU%2CR%2CA%2CT&weightUnit=KGS&weightValue=21000&containerTypeSizeValue=D5&tariffCode=ONEY-414&routeTypeCode=O%2CR
+
+step 1) find dest city
+we would like to input Destination as: Valence France, Kobierzyce, Poland... which is normally at the end of the Final Address
+
+step 2) inland seach rate @ ONE
+Cargo Type: Dry/General
+Weight Per Container: 21,000 KGS
+POD: ALL
+
+Valence, France
+Kobierzyce, Poland
+Teverola, Italy
+Leutkirch am Allgäu, Germany
+Fürth, Germany
+Forchheim, Germany
+Münster, Germany
+Oranienburg, Germany
+Weiterstadt, Germany
+Dortmund, Germany
+Worms, Germany
+Dietzenbach, Germany
+Tampere, Finland
+Komárom, Hungary
+Baumgartenberg, Austria
+Arques-la-Bataille, France
+Oegstgeest, Netherlands
+
+
+ANCONA, ITALY
+ANTWERP, BELGIUM
+BREMERHAVEN, HB, GERMANY
+FOS-SUR-MER, BOUCHES DU RHONE, FRANCE
+GDANSK, POLAND
+GDYNIA, POLAND
+GIOIA TAURO, ITALY
+HAMBURG, HH, GERMANY
+KOPER, SLOVENIA
+LE HAVRE, SEINE-MARITIME, FRANCE
+NAPLES, ITALY
+ROTTERDAM, NETHERLANDS
+SALERNO, ITALY
+
+
+
+Now we have the data downloaded in the downloads folder... The data structure is like the following
+
+Destination	Container Type & Size	Currency	Expiry Date	POD	Rate	Remarks	Transport Mode	Weight Range	Unnamed: 9		City Name	Total Count	Validation
+VALENCE, DROME, FRANCE	20 FT Dry	EUR	2026-03-31	ANTWERP, BELGIUM	2816	Truck Roundtrip ;  Gross Weight (incl. container tare) < 28 ton; Incl. Fuel Surcharge; Incl. Belgian Road Toll; ; Please  visit our website for our local surcharges overview ( https://eua.one-line.com/surcharges ). , VALENCE, France, 26000, FRVAF	Truck	0-28 TONS			VALENCE, DROME, FRANCE	21	TRUE
+
+
+you could also check it thorugh .head() probably .. but for my visuals.
+
+for data processing, first delete the rows from J,K,L,M,N because those rows include extra information that was used for data checking. now what i would like you to do is i have created a folder called source, and in that folder, there is a file called ocean_freight.xlsx, which contains the ocean freight data from Busan, South Kore to POD listed in column A... as you can see, the POD listed matches our POD that we had in ONE_Inland_Rate that we have extracted... 
+
+we would like to create column J as the Ocean Rate and the values that will go into those Ocean Rates willbe based on 2 conditions.
+condition 1) Search for column in Inland Rates called POD and that POD has to match with the POD in the ocean_freight sheet POD column (A) .. and if it's a match, then check the first 2 characters of row B(Container Type) in Inalnd rates and it'll either be 40 or 20... if it's 20 extract column B row (n, whatever you found the match in) and else (if it's 40, it's either 20 or 40), then select Column C, row n. and insert whatever value extracted into the ONE_Inland_rate sheet, in column J.
+
+in Column K, create TOTAL RATE, which would then take the sum of Rate (column F) and Ocean Rate (column J, newly created) and save the value of the sum for each row... you can leave it as a sum function if you are claculating through excel, if you are using dataframe to calculate the sum, then you don't have to keep the function there... 
+
+lastly if the column extraction method is unconventional, then you could just do a coulmn title checker when extracting row,.. whatever logic you think is the most efficient!
+
+
+-----
+
+now that the datas have been intgerated i would like to add further steps to the data process itself... after merging and all that, add a few steps.
+
+and i also want you to be involved in creating these steps
+
+macroscopically, we are traveling from Busan, South Korea to a POD listed there, and then using inland transportation to arrive at the destination. FOR EACH destination and container type, we would like to create a ranking of the cheapest total rate to the most expensive total rate (1 ~ n) maybe we could append the cost ranking (cheapest to expensive) in column L, but that's optional.. wtv you think is the most efficient method, use it. later on we will be creating a frontend probably tsx. and css where we will be giving user the option to choose the destination, container type, and based on that decision display the top 3 cheapest total rate paths where we will be displaying the POD (intermediate port pretty much) and the transport mode for the ranked pathways. we also want to show the most expensive pathway we could take (worst 1) at the bottom of the UI...  (so proabbly 4 rows in total, but the the 3 and 1 separated..)
+
+by doing this it'll probably function like a pivot table using values.. and displaying it on the app... 
+
+before doing all these steps, could you initialize a UI with .tsx and basic .css, minimalistic design with color of #007B99 and maybe of it's lighter colors, which will run on local host 3000 using the data from excel?
+
+the .tsx and .css stuff probably aren't downloaded on the computer so that would be the first step. if downloading doesn't work due to security reasons, then inform me.
+
+BREMERHAVEN, HB, GERMANY - * estimation based on Hamburg, Germany (freight cost unavailable)
+SALERNO, ITALY - * estimated based on Naples, Italy (freight cost unavailable)
+
