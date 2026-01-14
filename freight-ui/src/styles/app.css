@@ -17,6 +17,57 @@
   padding: var(--space-lg);
 }
 
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto 30px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+  margin: 0;
+  color: #1976d2;
+  font-size: 28px;
+}
+
+.provider-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.provider-selector label {
+  font-weight: 600;
+  color: #333;
+}
+
+.provider-dropdown {
+  padding: 8px 16px;
+  font-size: 16px;
+  border: 2px solid #1976d2;
+  border-radius: 6px;
+  background: white;
+  color: #1976d2;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-width: 180px;
+}
+
+.provider-dropdown:hover {
+  background: #e3f2fd;
+}
+
+.provider-dropdown:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
+}
+
 .app-container {
   max-width: 1100px;
   margin: 0 auto;
@@ -37,10 +88,14 @@
 }
 
 .header-subtitle {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-  font-weight: 400;
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
+  font-weight: 600;
   margin: 0 auto;
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--color-primary-lighter);
+  border-radius: var(--radius-md);
+  display: inline-block;
 }
 
 /* ===== Card Component ===== */

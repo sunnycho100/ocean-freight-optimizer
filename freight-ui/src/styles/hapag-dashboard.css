@@ -1,0 +1,88 @@
+/* HAPAG Dashboard - matching ONE tab design */
+
+/* Container Tabs */
+.hapag-container-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: var(--space-lg);
+  border-bottom: 2px solid var(--color-border-light);
+}
+
+.hapag-tab {
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s;
+  position: relative;
+  bottom: -2px;
+}
+
+.hapag-tab:hover:not(.disabled) {
+  color: var(--color-primary);
+  background: var(--color-primary-lighter);
+}
+
+.hapag-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.hapag-tab.disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* Details Header (clickable) */
+.hapag-details-header {
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.hapag-details-header:hover {
+  background-color: var(--color-bg);
+}
+
+/* Empty states using standard card classes */
+.empty-state {
+  text-align: center;
+  padding: var(--space-xxl);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.error-state {
+  color: #d32f2f;
+}
+
+@media (max-width: 768px) {
+  .route-path {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .route-arrow {
+    transform: rotate(90deg);
+  }
+  
+  .container-tabs {
+    flex-direction: column;
+  }
+  
+  .container-tab {
+    border-bottom: 1px solid #e0e0e0;
+    border-left: 3px solid transparent;
+  }
+  
+  .container-tab.active {
+    border-left-color: #1976d2;
+    border-bottom-color: transparent;
+  }
+}
