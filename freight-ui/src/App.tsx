@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import './styles/app.css';
 import RouteDashboard from './components/RouteDashboard';
 import HapagDashboard from './components/HapagDashboard';
+import SummaryDashboard from './components/SummaryDashboard';
 import { testGoogleMapsUrl } from './utils/googleMapsHelper';
-import { ShippingProvider } from './types';
+
+type ViewMode = 'ONE' | 'HAPAG' | 'SUMMARY';
 
 // Make test function available in browser console
 if (typeof window !== 'undefined') {
@@ -11,27 +13,37 @@ if (typeof window !== 'undefined') {
 }
 
 function App() {
-  const [provider, setProvider] = useState<ShippingProvider>('ONE');
+  const [viewMode, setViewMode] = useState<ViewMode>('ONE');
 
   return (
     <div className="app">
       <div className="app-header">
         <h1>Freight Route Analyzer</h1>
-        <div className="provider-selector">
-          <label htmlFor="provider-select">Provider:</label>
-          <select
-            id="provider-select"
-            value={provider}
-            onChange={(e) => setProvider(e.target.value as ShippingProvider)}
-            className="provider-dropdown"
+        <div className="view-selector">
+          <button
+            className={`view-btn ${viewMode === 'ONE' ? 'active' : ''}`}
+            onClick={() => setViewMode('ONE')}
           >
-            <option value="ONE">ONE</option>
-            <option value="HAPAG">HAPAG-LLOYD</option>
-          </select>
+            ONE
+          </button>
+          <button
+            className={`view-btn ${viewMode === 'HAPAG' ? 'active' : ''}`}
+            onClick={() => setViewMode('HAPAG')}
+          >
+            HAPAG
+          </button>
+          <button
+            className={`view-btn summary-btn ${viewMode === 'SUMMARY' ? 'active' : ''}`}
+            onClick={() => setViewMode('SUMMARY')}
+          >
+            Summary
+          </button>
         </div>
       </div>
       <div className="app-container">
-        {provider === 'ONE' ? <RouteDashboard /> : <HapagDashboard />}
+        {viewMode === 'ONE' && <RouteDashboard />}
+        {viewMode === 'HAPAG' && <HapagDashboard />}
+        {viewMode === 'SUMMARY' && <SummaryDashboard />}
       </div>
     </div>
   );

@@ -6,9 +6,13 @@ import glob
 from flask import Flask, jsonify
 from flask_cors import CORS
 import pandas as pd
+from functools import lru_cache
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
+
+# Cache for loaded data to avoid re-reading Excel files on every request
+_data_cache = {'one': None, 'hapag': None, 'one_file': None, 'hapag_file': None}
 
 def get_latest_processed_file():
     """Get the most recently processed Excel file."""
@@ -34,22 +38,41 @@ def get_latest_hapag_file():
     return max(files, key=os.path.getmtime)
 
 def load_data():
-    """Load the processed Excel data."""
+    """Load the processed Excel data with caching."""
     file_path = get_latest_processed_file()
     if not file_path:
         return None
-    return pd.read_excel(file_path)
+    
+    # Check if we already have this file cached
+    if _data_cache['one_file'] == file_path and _data_cache['one'] is not None:
+        return _data_cache['one']
+    
+    # Load and cache the data
+    print(f"Loading ONE data from: {file_path}")
+    df = pd.read_excel(file_path)
+    _data_cache['one'] = df
+    _data_cache['one_file'] = file_path
+    return df
 
 def load_hapag_data():
-    """Load the HAPAG surcharges Excel data."""
+    """Load the HAPAG surcharges Excel data with caching."""
     file_path = get_latest_hapag_file()
     if not file_path:
         return None
+    
+    # Check if we already have this file cached
+    if _data_cache['hapag_file'] == file_path and _data_cache['hapag'] is not None:
+        return _data_cache['hapag']
+    
+    # Load and cache the data
+    print(f"Loading HAPAG data from: {file_path}")
     # Read with header at row 3 (0-indexed: row 2 has the column headers, row 3 is first data row)
     # Skip the first 4 rows (2 info rows + 1 blank + 1 header row)
     df = pd.read_excel(file_path, header=None, skiprows=4)
     # Set column names manually
     df.columns = ['From', 'To', 'Via', 'Description', 'Curr.', '20STD', '40STD', '40HC', 'Transport Remarks']
+    _data_cache['hapag'] = df
+    _data_cache['hapag_file'] = file_path
     return df
 
 @app.route('/api/destinations', methods=['GET'])
@@ -268,4 +291,12 @@ def health_check():
 if __name__ == '__main__':
     print("Starting API server on http://localhost:5000")
     print(f"Data file: {get_latest_processed_file()}")
+    print(f"HAPAG file: {get_latest_hapag_file()}")
+    
+    # Preload data into cache for faster first request
+    print("Preloading data into cache...")
+    load_data()
+    load_hapag_data()
+    print("Data preloaded successfully!")
+    
     app.run(host='0.0.0.0', port=5000, debug=True)
