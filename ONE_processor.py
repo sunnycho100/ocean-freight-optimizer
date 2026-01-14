@@ -42,14 +42,28 @@ def load_data(inland_file, ocean_file):
 
 
 def clean_columns(df):
-    """Remove extra validation columns (J, K, L, M, N, O)."""
-    print("\nRemoving validation columns...")
+    """Remove extra validation columns and populate Transport Mode from Remarks."""
+    print("\nCleaning columns...")
     
     # Get column indices to drop
     # Columns are: 0-8 are data columns, 9-13 are validation columns to remove
     cols_to_keep = df.columns[:9]  # Keep only first 9 columns
     
     df_cleaned = df[cols_to_keep].copy()
+    
+    # Extract Transport Mode from Remarks column (column G)
+    # Get text up to semicolon and remove trailing space
+    def extract_transport_mode(remarks):
+        if pd.isna(remarks):
+            return ''
+        remarks_str = str(remarks)
+        # Find semicolon
+        if ';' in remarks_str:
+            # Get text before semicolon and strip trailing/leading spaces
+            return remarks_str.split(';')[0].strip()
+        return remarks_str.strip()
+    
+    df_cleaned['Transport Mode'] = df_cleaned['Remarks'].apply(extract_transport_mode)
     
     print(f"Columns after cleanup: {list(df_cleaned.columns)}")
     return df_cleaned
