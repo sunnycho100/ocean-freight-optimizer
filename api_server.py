@@ -6,7 +6,6 @@ import glob
 from flask import Flask, jsonify
 from flask_cors import CORS
 import pandas as pd
-from functools import lru_cache
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -25,8 +24,8 @@ def get_latest_processed_file():
     return max(files, key=os.path.getmtime)
 
 def get_latest_hapag_file():
-    """Get the most recently processed HAPAG Excel file."""
-    # Look for both patterns in downloads folder
+    """Get the most recently modified HAPAG surcharges file (raw format)."""
+    # Look for raw HAPAG files
     pattern1 = 'downloads/hapag_surcharges.xlsx'
     pattern2 = 'downloads/hapag_surcharges_*.xlsx'
     
@@ -55,7 +54,7 @@ def load_data():
     return df
 
 def load_hapag_data():
-    """Load the HAPAG surcharges Excel data with caching."""
+    """Load the raw HAPAG surcharges Excel data with caching."""
     file_path = get_latest_hapag_file()
     if not file_path:
         return None
@@ -66,8 +65,7 @@ def load_hapag_data():
     
     # Load and cache the data
     print(f"Loading HAPAG data from: {file_path}")
-    # Read with header at row 3 (0-indexed: row 2 has the column headers, row 3 is first data row)
-    # Skip the first 4 rows (2 info rows + 1 blank + 1 header row)
+    # Read raw format with skiprows=4
     df = pd.read_excel(file_path, header=None, skiprows=4)
     # Set column names manually
     df.columns = ['From', 'To', 'Via', 'Description', 'Curr.', '20STD', '40STD', '40HC', 'Transport Remarks']
@@ -153,10 +151,18 @@ def get_hapag_destinations():
 
 @app.route('/api/hapag/route/<path:destination>', methods=['GET'])
 def get_hapag_route(destination):
-    """Get route and charges for a specific HAPAG destination."""
+    """Get route and charges for a specific HAPAG destination (serving raw structure with sub-options)."""
     df = load_hapag_data()
     if df is None:
         return jsonify({'error': 'No HAPAG data file found'}), 404
+    
+    print(f"HAPAG file: {get_latest_hapag_file()}")
+    
+    # Preload data into cache for faster first request
+    print("Preloading data into cache...")
+    load_data()
+    load_hapag_data()
+    print("Data preloaded successfully!")
     
     # Filter by destination
     filtered = df[df['To'] == destination].copy()
@@ -168,7 +174,7 @@ def get_hapag_route(destination):
     first_row = filtered.iloc[0]
     route_from = first_row['From']
     route_to = first_row['To']
-    route_via = first_row['Via']
+    route_via = first_row['Via'] if pd.notna(first_row['Via']) and first_row['Via'] != '' else ''
     
     # Determine available containers (convert to Python bool for JSON serialization)
     available_containers = {
@@ -194,44 +200,47 @@ def get_hapag_route(destination):
             ocean_freight = {
                 'description': desc,
                 'curr': curr,
-                'value20STD': str(row['20STD']) if pd.notna(row['20STD']) else '',
-                'value40STD': str(row['40STD']) if pd.notna(row['40STD']) else '',
-                'value40HC': str(row['40HC']) if pd.notna(row['40HC']) else '',
+                'value20STD': str(row['20STD']) if pd.notna(row['20STD']) and row['20STD'] != '' else '',
+                'value40STD': str(row['40STD']) if pd.notna(row['40STD']) and row['40STD'] != '' else '',
+                'value40HC': str(row['40HC']) if pd.notna(row['40HC']) and row['40HC'] != '' else '',
             }
             i += 1
             continue
         
-        # Check if this is Destination Landfreight
+        # Check if this is Destination Landfreight (has sub-options when Curr. is empty)
         if 'destination landfreight' in desc.lower() or 'landfreight' in desc.lower():
             landfreight_item = {
                 'description': desc,
                 'curr': curr,
-                'value20STD': str(row['20STD']) if pd.notna(row['20STD']) else '',
-                'value40STD': str(row['40STD']) if pd.notna(row['40STD']) else '',
-                'value40HC': str(row['40HC']) if pd.notna(row['40HC']) else '',
+                'value20STD': str(row['20STD']) if pd.notna(row['20STD']) and row['20STD'] != '' else '',
+                'value40STD': str(row['40STD']) if pd.notna(row['40STD']) and row['40STD'] != '' else '',
+                'value40HC': str(row['40HC']) if pd.notna(row['40HC']) and row['40HC'] != '' else '',
             }
             
-            # Check if empty curr (has sub-options)
+            # Check if empty curr (signals sub-options exist below)
             if curr == '' or pd.isna(row['Curr.']):
                 sub_options = []
                 i += 1
                 
-                # Look for sub-option rows (same pattern in first word)
-                first_word = desc.split()[0].lower() if desc.split() else ''
-                
+                # Look for sub-option rows (usually start with "Combined", "Between", etc.)
+                # Continue while we find rows with currency values (sub-options)
                 while i < len(filtered):
                     next_row = filtered.iloc[i]
                     next_desc = str(next_row['Description'])
-                    next_first_word = next_desc.split()[0].lower() if next_desc.split() else ''
+                    next_curr = str(next_row['Curr.']) if pd.notna(next_row['Curr.']) and next_row['Curr.'] != '' else ''
                     
-                    # Check if it's a sub-option (starts with similar pattern like "Between", "Combined")
-                    if (next_first_word in ['between', 'combined', 'from'] or 
-                        (first_word and next_first_word == first_word)):
+                    # If we hit another main category (empty curr or different pattern), stop
+                    if next_curr == '' or pd.isna(next_row['Curr.']):
+                        break
+                    
+                    # Check if it looks like a sub-option (starts with Combined, Between, etc.)
+                    first_word = next_desc.split()[0].lower() if next_desc.split() else ''
+                    if first_word in ['combined', 'between', 'from', '<', '>'] or ';' in next_desc:
                         sub_options.append({
                             'description': next_desc,
-                            'value20': str(next_row['20STD']) if pd.notna(next_row['20STD']) else '',
-                            'value40': str(next_row['40STD']) if pd.notna(next_row['40STD']) else '',
-                            'value40HC': str(next_row['40HC']) if pd.notna(next_row['40HC']) else '',
+                            'value20': str(next_row['20STD']) if pd.notna(next_row['20STD']) and next_row['20STD'] != '' else '-',
+                            'value40': str(next_row['40STD']) if pd.notna(next_row['40STD']) and next_row['40STD'] != '' else '-',
+                            'value40HC': str(next_row['40HC']) if pd.notna(next_row['40HC']) and next_row['40HC'] != '' else '-',
                         })
                         i += 1
                     else:
@@ -239,7 +248,7 @@ def get_hapag_route(destination):
                 
                 if sub_options:
                     landfreight_item['subOptions'] = sub_options
-                    # Get currency from first sub-option row if available
+                    # Set currency from first sub-option
                     if i > 0 and i <= len(filtered):
                         prev_row = filtered.iloc[i-1]
                         if pd.notna(prev_row['Curr.']) and prev_row['Curr.'] != '':
@@ -250,14 +259,14 @@ def get_hapag_route(destination):
             destination_landfreight = landfreight_item
             continue
         
-        # Other charges
+        # Other charges (skip rows with empty currency as they're usually category headers)
         if curr != '' and not pd.isna(row['Curr.']):
             other_charges.append({
                 'description': desc,
                 'curr': curr,
-                'value20STD': str(row['20STD']) if pd.notna(row['20STD']) else '',
-                'value40STD': str(row['40STD']) if pd.notna(row['40STD']) else '',
-                'value40HC': str(row['40HC']) if pd.notna(row['40HC']) else '',
+                'value20STD': str(row['20STD']) if pd.notna(row['20STD']) and row['20STD'] != '' else '',
+                'value40STD': str(row['40STD']) if pd.notna(row['40STD']) and row['40STD'] != '' else '',
+                'value40HC': str(row['40HC']) if pd.notna(row['40HC']) and row['40HC'] != '' else '',
             })
         
         i += 1
@@ -291,12 +300,4 @@ def health_check():
 if __name__ == '__main__':
     print("Starting API server on http://localhost:5000")
     print(f"Data file: {get_latest_processed_file()}")
-    print(f"HAPAG file: {get_latest_hapag_file()}")
-    
-    # Preload data into cache for faster first request
-    print("Preloading data into cache...")
-    load_data()
-    load_hapag_data()
-    print("Data preloaded successfully!")
-    
     app.run(host='0.0.0.0', port=5000, debug=True)

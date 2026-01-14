@@ -27,6 +27,25 @@ const SummaryDashboard: React.FC = () => {
 
   const USD_TO_EUR = 0.86;
 
+  // Helper to convert between ONE and HAPAG container types
+  const oneToHapag = (oneType: string): '20STD' | '40STD' | '40HC' => {
+    const map: Record<string, '20STD' | '40STD' | '40HC'> = {
+      '20 FT Dry': '20STD',
+      '40 FT Dry': '40STD',
+      '40 FT High Cube Dry': '40HC',
+    };
+    return map[oneType] || '40STD';
+  };
+
+  const hapagToOne = (hapagType: '20STD' | '40STD' | '40HC'): string => {
+    const map: Record<string, string> = {
+      '20STD': '20 FT Dry',
+      '40STD': '40 FT Dry',
+      '40HC': '40 FT High Cube Dry',
+    };
+    return map[hapagType] || '40 FT High Cube Dry';
+  };
+
   // Helper to fetch with timeout
   const fetchWithTimeout = async (url: string, timeout = 3000): Promise<Response> => {
     const controller = new AbortController();
@@ -65,6 +84,8 @@ const SummaryDashboard: React.FC = () => {
       .replace(/\s+/g, ' ')  // Normalize spaces
       .replace(/\/.*$/, '')  // Remove suffix like "/DROME"
       .replace(/\s*B\.|\s*I\.|\s*IM\s+/, ' ')  // Normalize German abbreviations
+      .replace(/-/g, ' ')  // Remove hyphens (e.g., "ARQUES-LA-BATAILLE" -> "ARQUES LA BATAILLE")
+      .replace(/\s+/g, ' ')  // Normalize spaces again after hyphen removal
       .trim()
       .toUpperCase();
   };
@@ -345,27 +366,17 @@ const SummaryDashboard: React.FC = () => {
               </select>
             </div>
             <div className="filter-group">
-              <label className="filter-label">ONE Container</label>
+              <label className="filter-label">Container Type</label>
               <select
                 value={oneContainerType}
-                onChange={(e) => setOneContainerType(e.target.value)}
-                disabled={!selectedMapping?.oneDestination}
+                onChange={(e) => {
+                  setOneContainerType(e.target.value);
+                  setHapagContainerType(oneToHapag(e.target.value));
+                }}
               >
                 <option value="20 FT Dry">20 FT</option>
                 <option value="40 FT Dry">40 FT</option>
                 <option value="40 FT High Cube Dry">40 HC</option>
-              </select>
-            </div>
-            <div className="filter-group">
-              <label className="filter-label">HAPAG Container</label>
-              <select
-                value={hapagContainerType}
-                onChange={(e) => setHapagContainerType(e.target.value as '20STD' | '40STD' | '40HC')}
-                disabled={!selectedMapping?.hapagDestination}
-              >
-                <option value="20STD">20 STD</option>
-                <option value="40STD">40 STD</option>
-                <option value="40HC">40 HC</option>
               </select>
             </div>
           </div>
