@@ -49,12 +49,13 @@ class DataExtractor:
         
         return lines[0], " ".join(lines[1:])
     
-    def _find_header_row(self, rows) -> Tuple[Dict[int, str], int]:
+    def _find_header_row(self, rows, page=None) -> Tuple[Dict[int, str], int]:
         """
         Find header row and build column mapping.
         
         Args:
             rows: Playwright row elements
+            page: Page instance for columnheader detection
             
         Returns:
             Tuple of (header_map, header_row_index)
@@ -63,11 +64,44 @@ class DataExtractor:
         header_row_index = -1
         row_count = rows.count()
         
-        # Check first 20 rows for header
+        # Method 1: Try to find column headers using columnheader role (more reliable)
+        if page:
+            try:
+                col_headers = page.get_by_role("columnheader")
+                ch_count = col_headers.count()
+                
+                if ch_count >= 3:
+                    header_texts = []
+                    for i in range(ch_count):
+                        try:
+                            text = self._normalize_text(col_headers.nth(i).inner_text())
+                            header_texts.append(text)
+                        except:
+                            header_texts.append("")
+                    
+                    # Check if this looks like our header (has Curr. or container types)
+                    has_curr = "Curr." in header_texts or "Currency" in header_texts
+                    has_container = any(re.match(r'\d+[A-Z]+', t) for t in header_texts)
+                    
+                    if has_curr or has_container:
+                        for j, text in enumerate(header_texts):
+                            header_map[j] = text
+                        header_row_index = 0  # Assume first row is header
+                        print(f"   [INFO] Found headers via columnheader role")
+                        print(f"   [INFO] Header columns: {header_map}")
+                        return header_map, header_row_index
+            except Exception as e:
+                print(f"   [WARNING] columnheader detection failed: {e}")
+        
+        # Method 2: Check first 20 rows for header using cells
         for i in range(min(row_count, 20)):
             try:
                 r = rows.nth(i)
+                
+                # Try both cell and columnheader roles
                 cells = r.get_by_role("cell")
+                if cells.count() < 3:
+                    cells = r.get_by_role("columnheader")
                 
                 if cells.count() < 3:
                     continue
@@ -180,16 +214,33 @@ class DataExtractor:
                 except:
                     pass
             
-            # Extract container values dynamically
+            # Extract container values using position-based mapping
             container_values = {}
-            for col_idx, col_name in sorted(container_columns.items()):
-                if col_idx < cell_count:
+            num_container_cols = len(container_columns)
+            sorted_indices = sorted(container_columns.keys())
+            
+            # Position-based mapping:
+            # 2 columns → 40STD, 40HC
+            # 3 columns → 20STD, 40STD, 40HC
+            if num_container_cols == 2:
+                # Map to 40STD and 40HC
+                mapping = ["40STD", "40HC"]
+            elif num_container_cols == 3:
+                # Map to 20STD, 40STD, 40HC
+                mapping = ["20STD", "40STD", "40HC"]
+            else:
+                # Fallback: use original column names
+                mapping = [container_columns[idx] for idx in sorted_indices]
+            
+            for i, col_idx in enumerate(sorted_indices):
+                if col_idx < cell_count and i < len(mapping):
                     try:
                         value = self._normalize_text(cells.nth(col_idx).inner_text())
-                        container_values[col_name] = value
-                        print(f"      [COL {col_idx}] {col_name} = {value}")
+                        container_type = mapping[i]
+                        container_values[container_type] = value
+                        print(f"      [COL {col_idx}] Position {i+1}/{num_container_cols} → {container_type} = {value}")
                     except:
-                        container_values[col_name] = ""
+                        container_values[mapping[i]] = ""
             
             if desc:  # Only return if we have a description
                 return {
@@ -236,13 +287,13 @@ class DataExtractor:
             row_count = rows.count()
             print(f"   [INFO] Fallback: Found {row_count} <tr> rows")
         
-        # Step 1: Find header row and build column map
-        header_map, header_row_index = self._find_header_row(rows)
+        # Step 1: Find header row and build column map (pass page for columnheader detection)
+        header_map, header_row_index = self._find_header_row(rows, page)
         
         if not header_map:
             print("   [WARNING] No header row found, using position-based extraction")
-            # Fallback: assume standard structure
-            header_map = {0: "Description", 1: "Curr.", 2: "40STD", 3: "40HC"}
+            # Fallback: assume standard 5-column structure with all container types
+            header_map = {0: "Description", 1: "Curr.", 2: "20STD", 3: "40STD", 4: "40HC"}
         
         # Step 2: Identify container type columns
         container_columns = self._identify_container_columns(header_map)

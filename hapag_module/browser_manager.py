@@ -39,8 +39,11 @@ class BrowserManager:
         """
         print(f"🌐 Launching browser (headless={self.headless})...")
         
-        # Launch browser
-        self.browser = playwright.chromium.launch(headless=self.headless)
+        # Launch browser with slow_mo to appear more human-like
+        self.browser = playwright.chromium.launch(
+            headless=self.headless,
+            slow_mo=100  # 100ms delay between actions to appear human-like
+        )
         self.context = self.browser.new_context()
         self.page = self.context.new_page()
         
@@ -128,6 +131,52 @@ class BrowserManager:
         except Exception:
             print("ℹ️ Cookie consent not required or already accepted")
             return True
+    
+    def handle_cloudflare_challenge(self, page: Optional[Page] = None, timeout: int = 60000) -> bool:
+        """
+        Handle Cloudflare challenge/checkbox if present.
+        
+        Args:
+            page: Page instance to use. If None, uses self.page
+            timeout: Timeout in milliseconds to wait for challenge
+            
+        Returns:
+            True if challenge handled or not present, False if error
+        """
+        if page is None:
+            page = self.page
+        
+        if page is None:
+            raise ValueError("No page instance available")
+        
+        print("🔍 Checking for Cloudflare challenge...")
+        
+        try:
+            # Look for Cloudflare challenge iframe
+            cf_iframe = page.frame_locator("iframe[src*='challenges.cloudflare.com']")
+            
+            # Try to find and click the checkbox
+            checkbox = cf_iframe.locator("input[type='checkbox']")
+            if checkbox.count() > 0:
+                print("🤖 Cloudflare challenge detected, attempting to click checkbox...")
+                checkbox.first.click()
+                time.sleep(3)  # Wait for verification
+                print("✅ Cloudflare checkbox clicked")
+                return True
+            
+            # Also try the turnstile checkbox
+            turnstile = cf_iframe.locator(".ctp-checkbox-label")
+            if turnstile.count() > 0:
+                print("🤖 Cloudflare Turnstile detected, attempting to click...")
+                turnstile.first.click()
+                time.sleep(3)
+                print("✅ Cloudflare Turnstile clicked")
+                return True
+                
+        except Exception as e:
+            print(f"ℹ️ No Cloudflare challenge found or already passed: {e}")
+        
+        return True
     
     def get_page(self) -> Optional[Page]:
         """

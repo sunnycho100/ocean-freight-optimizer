@@ -6,7 +6,9 @@ all other modules to perform end-to-end quote extraction.
 """
 
 from typing import List, Dict, Any
-from playwright.sync_api import Playwright, sync_playwright
+from datetime import datetime
+from pathlib import Path
+from playwright.sync_api import Playwright, sync_playwright, Page
 
 from .config_loader import ConfigLoader
 from .browser_manager import BrowserManager
@@ -87,9 +89,43 @@ class MainRunner:
             print(f"❌ ERROR preparing Excel file: {e}")
             return False
     
+    def _save_error_screenshot(self, page: Page, destination: str, error_type: str) -> None:
+        """
+        Save screenshot and error report when destination processing fails.
+        
+        Args:
+            page: Page instance for screenshot
+            destination: Destination name that failed
+            error_type: Type of error (e.g., DESTINATION_NOT_FOUND)
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_dest = destination.replace(",", "").replace(" ", "_")
+            
+            # Create error_checks directory if it doesn't exist
+            error_dir = Path("error_checks")
+            error_dir.mkdir(exist_ok=True)
+            
+            # Save screenshot
+            screenshot_path = error_dir / f"{error_type}_{safe_dest}_{timestamp}.png"
+            page.screenshot(path=str(screenshot_path))
+            print(f"📸 Screenshot saved: {screenshot_path}")
+            
+            # Save error text file
+            error_file = error_dir / f"{error_type}_{safe_dest}_{timestamp}.txt"
+            with open(error_file, "w", encoding="utf-8") as f:
+                f.write(f"Error Type: {error_type}\\n")
+                f.write(f"Destination: {destination}\\n")
+                f.write(f"Timestamp: {timestamp}\\n")
+                f.write(f"URL: {page.url}\\n")
+            print(f"📝 Error report saved: {error_file}")
+            
+        except Exception as e:
+            print(f"⚠️ WARNING: Could not save error screenshot/report: {e}")
+    
     def _print_summary(self) -> None:
         """Print processing summary."""
-        print(f"\n{'='*60}")
+        print(f"\\n{'='*60}")
         print(f"📋 Processing {len(self.destinations)} destinations from destinations.txt")
         print(f"{'='*60}")
         for dest in self.destinations:
@@ -112,21 +148,35 @@ class MainRunner:
         print(f"🎯 Processing {index}/{total}: {destination}")
         print(f"{'='*60}")
         
-        # Get location code from config
-        location_code = self.config_loader.get_location_code(destination, self.configs)
+        # Get location code and alternate codes from config
+        config_entry = self.configs.get(destination, {})
+        location_code = config_entry.get("hapagLocationCode") or config_entry.get("locationCode")
+        
         if not location_code:
+            print(f"❌ ERROR: No location code found for {destination}")
             return False
         
-        print(f"📍 Location Code: {location_code}")
+        # Build list of alternate codes to try
+        alternate_codes = []
+        if config_entry.get("hapagLocationCode") and config_entry.get("locationCode"):
+            # If we have both hapag-specific and general code, try both
+            if config_entry.get("hapagLocationCode") != config_entry.get("locationCode"):
+                alternate_codes.append(config_entry.get("locationCode"))
+        
+        print(f"📍 Primary Location Code: {location_code}")
+        if alternate_codes:
+            print(f"📍 Alternate Codes: {', '.join(alternate_codes)}")
         
         page = self.browser_manager.get_page()
         if not page:
             print("❌ ERROR: No page instance available")
             return False
         
-        # Perform quote search
+        # Perform quote search with alternate codes
         is_first_search = (index == 1)
-        if not self.quote_scraper.perform_full_search(page, location_code, is_first_search):
+        if not self.quote_scraper.perform_full_search(page, location_code, is_first_search, alternate_codes):
+            # Take screenshot and save error
+            self._save_error_screenshot(page, destination, "DESTINATION_NOT_FOUND")
             return False
         
         # Extract route information
@@ -218,7 +268,10 @@ class MainRunner:
             # Step 5: Navigate to Hapag-Lloyd
             self.browser_manager.navigate_to_hapag(page)
             
-            # Step 6: Wait for page to load and handle cookie consent
+            # Step 6: Handle Cloudflare challenge if present
+            self.browser_manager.handle_cloudflare_challenge(page)
+            
+            # Step 7: Wait for page to load and handle cookie consent
             if not self.browser_manager.wait_for_page_load(page):
                 return False
             

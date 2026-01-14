@@ -67,13 +67,14 @@ class QuoteScraper:
             print(f"❌ ERROR setting origin port: {e}")
             return False
     
-    def set_destination_port(self, page: Page, location_code: str, is_first_search: bool = True) -> bool:
+    def set_destination_port(self, page: Page, location_code: str, alternate_codes: list = None, is_first_search: bool = True) -> bool:
         """
-        Set the destination port for shipping quote.
+        Set the destination port for shipping quote with fallback support.
         
         Args:
             page: Page instance to interact with
-            location_code: Destination port location code
+            location_code: Primary destination port location code
+            alternate_codes: List of alternate codes to try if primary fails
             is_first_search: Whether this is the first search
             
         Returns:
@@ -88,33 +89,54 @@ class QuoteScraper:
             except:
                 pass  # Clear button not found or not needed
         
-        print(f"📍 Entering destination: {location_code}...")
+        # Build list of codes to try
+        codes_to_try = [location_code]
+        if alternate_codes:
+            codes_to_try.extend(alternate_codes)
         
-        try:
-            # Click and fill destination field
-            end_input = page.get_by_test_id("end-input")
-            end_input.click()
-            end_input.fill(location_code.lower())
-            time.sleep(1.5)  # Wait for autocomplete dropdown to populate
+        # Try each code
+        for code in codes_to_try:
+            print(f"📍 Trying destination code: {code}...")
             
-            # Try to click the exact match with location code
             try:
-                exact_match = f"({location_code})"
-                page.get_by_text(exact_match).first.click()
-                time.sleep(0.5)
-                print(f"✅ Selected destination with code: {location_code}")
+                # Click and fill destination field
+                end_input = page.get_by_test_id("end-input")
+                end_input.click()
                 
-            except:
-                print(f"⚠️ WARNING: Could not find exact match for {location_code}, using arrow key selection")
-                end_input.press("ArrowDown")
-                end_input.press("Enter")
-                time.sleep(0.5)
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ ERROR setting destination port: {e}")
-            return False
+                # Clear any previous input
+                end_input.fill("")
+                time.sleep(0.3)
+                
+                end_input.fill(code.lower())
+                time.sleep(1.5)  # Wait for autocomplete dropdown to populate
+                
+                # Try to click the exact match with location code
+                try:
+                    exact_match = f"({code})"
+                    page.get_by_text(exact_match).first.click()
+                    time.sleep(0.5)
+                    print(f"✅ Selected destination with code: {code}")
+                    return True
+                    
+                except:
+                    print(f"⚠️ WARNING: Could not find exact match for {code}, trying arrow key selection")
+                    try:
+                        end_input.press("ArrowDown")
+                        end_input.press("Enter")
+                        time.sleep(0.5)
+                        print(f"✅ Selected destination using arrow key for code: {code}")
+                        return True
+                    except:
+                        print(f"❌ Failed to select with code: {code}")
+                        continue
+                
+            except Exception as e:
+                print(f"❌ ERROR with code {code}: {e}")
+                continue
+        
+        # All codes failed
+        print(f"❌ ERROR: Could not set destination with any of the codes: {codes_to_try}")
+        return False
     
     def select_delivery_option(self, page: Page) -> bool:
         """
@@ -303,14 +325,15 @@ class QuoteScraper:
         print(f"   [ROUTE] From: {route['from']}, To: {route['to']}, Via: {route['via']}")
         return route
     
-    def perform_full_search(self, page: Page, location_code: str, is_first_search: bool = True) -> bool:
+    def perform_full_search(self, page: Page, location_code: str, is_first_search: bool = True, alternate_codes: list = None) -> bool:
         """
         Perform a complete quote search workflow.
         
         Args:
             page: Page instance to interact with
-            location_code: Destination port location code
+            location_code: Primary destination port location code
             is_first_search: Whether this is the first search
+            alternate_codes: List of alternate codes to try if primary fails
             
         Returns:
             True if complete search workflow successful, False otherwise
@@ -325,8 +348,8 @@ class QuoteScraper:
             if not self.set_origin_port(page, is_first_search):
                 return False
             
-            # Set destination port
-            if not self.set_destination_port(page, location_code, is_first_search):
+            # Set destination port (with alternate codes support)
+            if not self.set_destination_port(page, location_code, alternate_codes, is_first_search):
                 return False
             
             # Select delivery option
