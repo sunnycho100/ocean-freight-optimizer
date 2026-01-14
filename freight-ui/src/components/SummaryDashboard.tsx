@@ -8,11 +8,15 @@ interface DestinationOption {
   displayName: string;
 }
 
+interface DestinationMapping {
+  displayName: string;
+  oneDestination: string | null;
+  hapagDestination: string | null;
+}
+
 const SummaryDashboard: React.FC = () => {
-  const [oneDestinations, setOneDestinations] = useState<string[]>([]);
-  const [hapagDestinations, setHapagDestinations] = useState<string[]>([]);
-  const [selectedDestination, setSelectedDestination] = useState<string>('');
-  const [selectedHapagDest, setSelectedHapagDest] = useState<string>('');
+  const [destinationMappings, setDestinationMappings] = useState<DestinationMapping[]>([]);
+  const [selectedMapping, setSelectedMapping] = useState<DestinationMapping | null>(null);
   const [oneContainerType, setOneContainerType] = useState<string>('40 FT High Cube Dry');
   const [hapagContainerType, setHapagContainerType] = useState<'20STD' | '40STD' | '40HC'>('40STD');
   
@@ -47,6 +51,64 @@ const SummaryDashboard: React.FC = () => {
     return map[containerType] || containerType;
   };
 
+  // Helper to extract city name from destination string
+  const extractCityName = (destination: string): string => {
+    // For ONE format: "OEGSTGEEST, NETHERLANDS" -> "OEGSTGEEST"
+    // For HAPAG format: "OEGSTGEEST" -> "OEGSTGEEST"
+    // Also handles: "VALENCE, DROME, FRANCE" -> "VALENCE"
+    return destination.split(',')[0].trim();
+  };
+
+  // Helper to normalize city name for matching
+  const normalizeCityName = (cityName: string): string => {
+    return cityName
+      .replace(/\s+/g, ' ')  // Normalize spaces
+      .replace(/\/.*$/, '')  // Remove suffix like "/DROME"
+      .replace(/\s*B\.|\s*I\.|\s*IM\s+/, ' ')  // Normalize German abbreviations
+      .trim()
+      .toUpperCase();
+  };
+
+  // Create destination mappings
+  const createDestinationMappings = (oneDests: string[], hapagDests: string[]): DestinationMapping[] => {
+    const mappings: DestinationMapping[] = [];
+    const used = new Set<string>();
+
+    // Match ONE destinations to HAPAG
+    oneDests.forEach(oneDest => {
+      const oneCity = normalizeCityName(extractCityName(oneDest));
+      let matchedHapag: string | null = null;
+
+      for (const hapagDest of hapagDests) {
+        const hapagCity = normalizeCityName(extractCityName(hapagDest));
+        if (oneCity === hapagCity || oneCity.includes(hapagCity) || hapagCity.includes(oneCity)) {
+          matchedHapag = hapagDest;
+          used.add(hapagDest);
+          break;
+        }
+      }
+
+      mappings.push({
+        displayName: extractCityName(oneDest),
+        oneDestination: oneDest,
+        hapagDestination: matchedHapag,
+      });
+    });
+
+    // Add remaining HAPAG destinations that didn't match
+    hapagDests.forEach(hapagDest => {
+      if (!used.has(hapagDest)) {
+        mappings.push({
+          displayName: extractCityName(hapagDest),
+          oneDestination: null,
+          hapagDestination: hapagDest,
+        });
+      }
+    });
+
+    return mappings.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  };
+
   // Fetch destinations
   useEffect(() => {
     const fetchDestinations = async () => {
@@ -57,20 +119,26 @@ const SummaryDashboard: React.FC = () => {
           fetchWithTimeout(`${API_BASE}/hapag/destinations`, 3000),
         ]);
 
+        let oneDest: string[] = [];
+        let hapagDest: string[] = [];
+
         if (oneRes.status === 'fulfilled' && oneRes.value.ok) {
-          const oneDest = await oneRes.value.json();
-          setOneDestinations(oneDest);
-          if (oneDest.length > 0) setSelectedDestination(oneDest[0]);
+          oneDest = await oneRes.value.json();
         } else {
           console.warn('Failed to fetch ONE destinations');
         }
 
         if (hapagRes.status === 'fulfilled' && hapagRes.value.ok) {
-          const hapagDest = await hapagRes.value.json();
-          setHapagDestinations(hapagDest);
-          if (hapagDest.length > 0) setSelectedHapagDest(hapagDest[0]);
+          hapagDest = await hapagRes.value.json();
         } else {
           console.warn('Failed to fetch HAPAG destinations');
+        }
+
+        // Create mappings between ONE and HAPAG destinations
+        const mappings = createDestinationMappings(oneDest, hapagDest);
+        setDestinationMappings(mappings);
+        if (mappings.length > 0) {
+          setSelectedMapping(mappings[0]);
         }
 
         // If both failed, show error
@@ -89,12 +157,15 @@ const SummaryDashboard: React.FC = () => {
 
   // Fetch ONE data
   useEffect(() => {
-    if (!selectedDestination || !oneContainerType) return;
+    if (!selectedMapping?.oneDestination || !oneContainerType) {
+      setOneData(null);
+      return;
+    }
 
     const fetchOneData = async () => {
       try {
         const res = await fetchWithTimeout(
-          `${API_BASE}/routes/${encodeURIComponent(selectedDestination)}/${encodeURIComponent(oneContainerType)}`,
+          `${API_BASE}/routes/${encodeURIComponent(selectedMapping.oneDestination!)}/${encodeURIComponent(oneContainerType)}`,
           3000
         );
 
@@ -112,16 +183,19 @@ const SummaryDashboard: React.FC = () => {
     };
 
     fetchOneData();
-  }, [selectedDestination, oneContainerType]);
+  }, [selectedMapping, oneContainerType]);
 
   // Fetch HAPAG data
   useEffect(() => {
-    if (!selectedHapagDest) return;
+    if (!selectedMapping?.hapagDestination) {
+      setHapagData(null);
+      return;
+    }
 
     const fetchHapagData = async () => {
       try {
         const res = await fetchWithTimeout(
-          `${API_BASE}/hapag/route/${encodeURIComponent(selectedHapagDest)}`,
+          `${API_BASE}/hapag/route/${encodeURIComponent(selectedMapping.hapagDestination!)}`,
           3000
         );
 
@@ -139,7 +213,7 @@ const SummaryDashboard: React.FC = () => {
     };
 
     fetchHapagData();
-  }, [selectedHapagDest]);
+  }, [selectedMapping]);
 
   // Calculate HAPAG total in EUR
   const calculateHapagTotal = (): number => {
@@ -253,13 +327,20 @@ const SummaryDashboard: React.FC = () => {
         <div className="card-body">
           <div className="filters-content">
             <div className="filter-group">
-              <label className="filter-label">ONE Destination</label>
+              <label className="filter-label">Destination</label>
               <select
-                value={selectedDestination}
-                onChange={(e) => setSelectedDestination(e.target.value)}
+                value={selectedMapping?.displayName || ''}
+                onChange={(e) => {
+                  const mapping = destinationMappings.find(m => m.displayName === e.target.value);
+                  if (mapping) setSelectedMapping(mapping);
+                }}
               >
-                {oneDestinations.map((dest) => (
-                  <option key={dest} value={dest}>{dest}</option>
+                {destinationMappings.map((mapping) => (
+                  <option key={mapping.displayName} value={mapping.displayName}>
+                    {mapping.displayName}
+                    {!mapping.oneDestination && ' (HAPAG only)'}
+                    {!mapping.hapagDestination && ' (ONE only)'}
+                  </option>
                 ))}
               </select>
             </div>
@@ -268,6 +349,7 @@ const SummaryDashboard: React.FC = () => {
               <select
                 value={oneContainerType}
                 onChange={(e) => setOneContainerType(e.target.value)}
+                disabled={!selectedMapping?.oneDestination}
               >
                 <option value="20 FT Dry">20 FT</option>
                 <option value="40 FT Dry">40 FT</option>
@@ -275,21 +357,11 @@ const SummaryDashboard: React.FC = () => {
               </select>
             </div>
             <div className="filter-group">
-              <label className="filter-label">HAPAG Destination</label>
-              <select
-                value={selectedHapagDest}
-                onChange={(e) => setSelectedHapagDest(e.target.value)}
-              >
-                {hapagDestinations.map((dest) => (
-                  <option key={dest} value={dest}>{dest}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
               <label className="filter-label">HAPAG Container</label>
               <select
                 value={hapagContainerType}
                 onChange={(e) => setHapagContainerType(e.target.value as '20STD' | '40STD' | '40HC')}
+                disabled={!selectedMapping?.hapagDestination}
               >
                 <option value="20STD">20 STD</option>
                 <option value="40STD">40 STD</option>
@@ -368,7 +440,7 @@ const SummaryDashboard: React.FC = () => {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">
-            HAPAG-Lloyd - {selectedHapagDest} ({hapagContainerType})
+            HAPAG-Lloyd - {selectedMapping?.displayName || 'N/A'} ({hapagContainerType})
             {hapagData && <span style={{ fontWeight: 400, fontSize: '14px' }}> via {hapagData.route.via}</span>}
           </h2>
         </div>

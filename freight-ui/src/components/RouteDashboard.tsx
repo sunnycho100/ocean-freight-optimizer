@@ -117,7 +117,7 @@ const RouteDashboard: React.FC = () => {
     <>
       {/* Header */}
       <header className="header">
-        <h1 className="header-title">Freight Route Optimizer</h1>
+        <h1 className="header-title">ONE Route Optimizer</h1>
         <p className="header-subtitle">
           Busan (KR) → POD → Inland Destination
         </p>
