@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HapagLaneData, HapagChargeItem, HapagSubOption } from '../types';
 import '../styles/hapag-dashboard.css';
 
-const API_BASE = 'http://localhost:5000/api';
+import { API_BASE } from '../config';
 
 type ContainerType = '20STD' | '40STD' | '40HC';
 

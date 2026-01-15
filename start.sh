@@ -48,7 +48,7 @@ if [ ! -d "freight-ui/node_modules" ]; then
 fi
 
 # Start the Flask API server in the background
-echo "Starting API server on port 5000..."
+echo "Starting API server (will auto-select port starting from 4000)..."
 if [ -d ".venv" ]; then
     # Use virtual environment if it exists
     .venv/bin/python api_server.py &
@@ -58,8 +58,21 @@ else
 fi
 API_PID=$!
 
-# Wait a moment for API to initialize
-sleep 3
+# Wait for API to initialize and write port file
+echo "Waiting for API server to start..."
+for i in {1..30}; do
+    if [ -f ".api_port" ]; then
+        API_PORT=$(cat .api_port)
+        echo "API server started on port $API_PORT"
+        break
+    fi
+    sleep 0.5
+done
+
+if [ ! -f ".api_port" ]; then
+    echo "Warning: Could not detect API port, assuming 4000"
+    API_PORT=4000
+fi
 
 # Start the React frontend
 echo "Starting React frontend on port 3000..."
@@ -68,14 +81,19 @@ cd freight-ui
 # Set environment variable to prevent auto-opening browser
 export BROWSER=none
 
+# Pass API port to React as environment variable
+export REACT_APP_API_PORT=$API_PORT
+
 # Start React in the background
 npm start &
 FRONTEND_PID=$!
 
-# Wait for React to compile
+# Wait for React to be ready
 echo ""
-echo "Waiting for React to compile (10 seconds)..."
-sleep 10
+echo "Waiting for React to be ready..."
+until curl -s http://localhost:3000 > /dev/null 2>&1; do
+    sleep 0.5
+done
 
 # Open browser (macOS specific)
 echo ""
@@ -89,7 +107,7 @@ fi
 echo ""
 echo "=========================================="
 echo " Both servers are running!"
-echo " - API Server:  http://localhost:5000"
+echo " - API Server:  http://localhost:$API_PORT"
 echo " - Frontend:    http://localhost:3000"
 echo "=========================================="
 echo ""
@@ -101,9 +119,13 @@ cleanup() {
     echo "Shutting down servers..."
     kill $API_PID 2>/dev/null
     kill $FRONTEND_PID 2>/dev/null
-    # Kill any remaining processes on ports 5000 and 3000
-    lsof -ti:5000 | xargs kill -9 2>/dev/null
+    # Kill any remaining processes on detected API port and frontend port
+    if [ -n "$API_PORT" ]; then
+        lsof -ti:$API_PORT | xargs kill -9 2>/dev/null
+    fi
     lsof -ti:3000 | xargs kill -9 2>/dev/null
+    # Clean up port file
+    rm -f .api_port
     echo "Servers stopped."
     exit 0
 }

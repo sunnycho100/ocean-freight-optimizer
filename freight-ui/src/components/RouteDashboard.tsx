@@ -4,8 +4,7 @@ import RouteTable from './RouteTable';
 import RouteTableTabs from './RouteTableTabs';
 import RouteMap from './RouteMap';
 import { FilterState, LaneData, Route } from '../types';
-
-const API_BASE = 'http://localhost:5000/api';
+import { API_BASE } from '../config';
 
 const RouteDashboard: React.FC = () => {
   const [destinations, setDestinations] = useState<string[]>([]);

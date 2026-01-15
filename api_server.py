@@ -3,6 +3,7 @@ Flask API server to serve processed Excel data to the React frontend.
 """
 import os
 import glob
+import socket
 from flask import Flask, jsonify
 from flask_cors import CORS
 import pandas as pd
@@ -297,7 +298,22 @@ def health_check():
         'file': get_latest_processed_file()
     })
 
+def find_available_port(start_port=4000, max_attempts=100):
+    """Find an available port starting from start_port."""
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('0.0.0.0', port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"Could not find an available port in range {start_port}-{start_port + max_attempts}")
+
 if __name__ == '__main__':
-    print("Starting API server on http://localhost:5000")
+    port = find_available_port(4000)
+    print(f"Starting API server on http://localhost:{port}")
     print(f"Data file: {get_latest_processed_file()}")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Write port to file so start.sh can read it
+    with open('.api_port', 'w') as f:
+        f.write(str(port))
+    app.run(host='0.0.0.0', port=port, debug=True)
