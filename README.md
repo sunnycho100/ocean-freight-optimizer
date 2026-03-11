@@ -1,316 +1,220 @@
 # Freight Route Optimizer
 
-A comprehensive freight route analysis and visualization system for comparing inland transportation rates from multiple shipping carriers (ONE Line & HAPAG-Lloyd) through various PODs (Ports of Discharge) to European destinations.
+A multi-carrier freight route analysis and visualization system that compares inland transportation rates from **ONE Line** and **HAPAG-Lloyd** through various PODs (Ports of Discharge) to European destinations. It automates data collection, processing, and presents results in an interactive React dashboard.
+
+---
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Setup & Installation](#setup--installation)
+- [System Architecture](#system-architecture)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
+- [Troubleshooting](#troubleshooting)
+- [Notes](#notes)
+
+---
 
 ## Quick Start
 
-### One-Click Launch (Windows)
+### macOS / Linux
+```bash
+./start.sh
+```
+
+### Windows
 ```bash
 start.bat
 ```
-This will:
-- Start the Flask API server (port 5000)
-- Start the React frontend (port 3001)
-- Automatically open your browser to the multi-carrier dashboard
 
-Server windows are minimized to the taskbar for a clean user experience.
-
----
-
-## System Architecture
-
-### 1. **Data Collection** (`quick_download_refactored.py`)
-Automatically scrapes inland freight rates from ONE Line website for multiple destinations using a modular package structure for better organization and debugging.
-
-**Usage:**
-```bash
-python quick_download_refactored.py
-```
-
-**Output:** 
-- `downloads/ONE_Inland_Rate_YYYYMMDD.xlsx` - Raw scraped data
+Both scripts will:
+1. Start the Flask API server (dynamic port starting from 4000 on macOS/Linux, port 5000 on Windows)
+2. Start the React frontend (port 3000)
+3. Open your browser to the multi-carrier dashboard
 
 ---
 
-### 2. **Data Processing**
+## Features
 
-#### ONE Processor (`ONE_processor.py`)
-Combines inland rates with ocean freight costs and calculates total rates with proper ranking.
+### Multi-Carrier Support
+- **ONE Line** — Processed inland rates with ocean freight integration
+- **HAPAG-Lloyd** — Surcharge data with landfreight sub-options (Combined Rail, Between modes)
 
-**Usage:**
-```bash
-python ONE_processor.py
-```
+### Three Dashboard Views
+| View | Description |
+|------|-------------|
+| **ONE Dashboard** | Top-ranked routes by total cost, map comparison grid, transport mode & remarks |
+| **HAPAG Dashboard** | Landfreight surcharges with sub-option selector, container type filtering |
+| **Summary** | Side-by-side carrier comparison with unified container types and city name normalization |
 
-**Features:**
-- Merges inland rates with ocean freight costs from `source/ocean_freight.xlsx`
-- Extracts Transport Mode from Remarks column (text before semicolon)
-- Calculates total rates (inland + ocean)
-- Ranks routes by cost for each destination-container combination using `dense` ranking (1,2,3,4... no gaps)
-- Removes validation columns for clean output
+### Intelligent Data Processing
+- Automatic transport mode extraction from Remarks column
+- City name normalization (e.g., `ARQUES-LA-BATAILLE` ↔ `ARQUES LA BATAILLE`)
+- Container type synchronization across carriers (e.g., `20 FT` ↔ `20STD`)
+- Dense ranking (1, 2, 3, 4 — no gaps) for route cost comparison
 
-**Output:**
-- `downloads/ONE_Inland_Rate_Processed_YYYYMMDD_HHMMSS.xlsx` - Processed data with rankings
-
-#### HAPAG Extractor (`hapag_extractor.py`)
-Automated web scraping tool for HAPAG-Lloyd landfreight surcharges.
-
-**Usage:**
-```bash
-python hapag_extractor.py
-```
-
-**Features:**
-- Playwright-based automation with stealth mode
-- Automated login using credentials from `.env` file
-- Extracts landfreight surcharges with sub-options (Combined Rail, Between modes)
-- Preserves complete rate structures including alternative transport options
-
-**Output:**
-- `downloads/hapag_surcharges_YYYYMMDD.xlsx` - Raw HAPAG data with sub-options
-
----
-
-### 3. **Backend API** (`api_server.py`)
-Flask REST API that serves processed data from multiple carriers to the frontend.
-
-**Endpoints:**
-
-**ONE Line:**
-- `GET /api/destinations` - List of all destinations
-- `GET /api/container-types` - List of container types
-- `GET /api/routes/<destination>/<container_type>` - Ranked routes for specific criteria
-
-**HAPAG-Lloyd:**
-- `GET /api/hapag/destinations` - List of HAPAG destinations
-- `GET /api/hapag/route/<destination>/<container_type>` - HAPAG rates with sub-options
-
-**System:**
-- `GET /api/health` - Health check endpoint
-
-**Auto-starts on:** `http://localhost:5000`
-
-**Key Features:**
-- Data caching for improved performance
-- Runtime parsing of HAPAG sub-options (preserves Combined Rail, Between transport modes)
-- Automatic detection of latest data files in downloads folder
-
----
-
-### 4. **Frontend Dashboard** (`freight-ui/`)
-React/TypeScript multi-carrier comparison platform with three specialized views.
-
-**Three Dashboard Views:**
-
-1. **ONE Dashboard** - ONE Line inland rates visualization
-   - Top 3 routes ranked by total cost
-   - Map comparison grid with embedded Google Maps
-   - Transport Mode and Remarks columns
-   - Worst route comparison
-
-2. **HAPAG Dashboard** - HAPAG-Lloyd surcharges with sub-options
-   - Landfreight surcharge display
-   - Sub-option selector for alternative transport modes (Combined Rail, Between)
-   - Container type filtering (20STD, 40STD, 40HC)
-   - Dynamic rate updates based on selection
-
-3. **Summary Comparison** - Side-by-side carrier comparison
-   - Unified container type selector (auto-converts: 20 FT ↔ 20STD, 40 FT ↔ 40STD, etc.)
-   - City name normalization (handles hyphens: ARQUES-LA-BATAILLE vs ARQUES LA BATAILLE)
-   - Synchronized filtering across both carriers
-   - Direct rate comparison table
-
-**Technology Stack:**
-- React 18 with TypeScript
-- Component-based architecture (OneDashboard, HapagDashboard, SummaryDashboard)
-- CSS custom properties for theming
-- Google Maps iframe embed (no API key required)
-- Incremental TypeScript compilation for faster builds
-
-**Auto-starts on:** `http://localhost:3001`
+### Google Maps Integration
+- Embedded iframe maps (no API key required)
+- Grid view with 3 maps for top routes comparison
+- Fallback "View in Google Maps" button if embed is blocked
 
 ---
 
 ## Setup & Installation
 
+> For detailed step-by-step instructions on a fresh machine, see [INITIAL_SETUP.md](INITIAL_SETUP.md).
+
 ### Prerequisites
+
 - Python 3.10+
 - Node.js 18+
-- Chrome browser (for data scraping)
-- Windows OS (for `start.bat` automation)
+- Chrome / Chromium browser (for data scraping)
 - HAPAG-Lloyd account credentials (for HAPAG data extraction)
 
-### Initial Setup
+### 1. Python Environment
 
-**For detailed step-by-step setup instructions for new computers, see [INITIAL_SETUP.md](INITIAL_SETUP.md)**
-
-1. **Install Python dependencies:**
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
-pip install pandas openpyxl playwright playwright-stealth python-dotenv flask flask-cors selenium
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate         # Windows
+
+pip install pandas openpyxl playwright playwright-stealth python-dotenv flask flask-cors requests selenium
 playwright install chromium
 ```
 
-2. **Install frontend dependencies:**
+### 2. Frontend Dependencies
+
 ```bash
-cd freight-ui
-npm install
-cd ..
+cd freight-ui && npm install && cd ..
 ```
 
-3. **Create environment file (.env):**
+### 3. Environment Variables
+
+Create a `.env` file in the project root:
+
 ```
-HAPAG_USERNAME=your_username_here
+HAPAG_EMAIL=your_email@example.com
 HAPAG_PASSWORD=your_password_here
 ```
 
-4. **Prepare data files:**
-   - Place ocean freight rates in `source/ocean_freight.xlsx`
-   - Configure destinations in `destinations.txt`
-   - Run data collection and processing
+### 4. Data Files
+
+- Place ocean freight rates in `source/ocean_freight.xlsx` (columns: POD, Currency, 20 FT, 40 FT)
+- Configure target destinations in `destinations.txt` (one per line)
 
 ---
 
-## Detailed Workflow
+## System Architecture
 
-### Data Collection from Multiple Carriers
+```
+ ┌─────────────────────────────────────────────────────────────────┐
+ │  Data Collection                                                │
+ │  ┌──────────────────────────┐  ┌──────────────────────────────┐ │
+ │  │ quick_download_refactored│  │ hapag_checker.py             │ │
+ │  │ .py (Selenium)           │  │ + hapag_module/ (Playwright) │ │
+ │  │ ONE Line inland rates    │  │ HAPAG-Lloyd surcharges       │ │
+ │  └────────────┬─────────────┘  └──────────────┬───────────────┘ │
+ │               ▼                               ▼                 │
+ │  ┌──────────────────────────┐  ┌──────────────────────────────┐ │
+ │  │ ONE_processor.py         │  │ downloads/                   │ │
+ │  │ Merge ocean freight,     │  │ hapag_surcharges_*.xlsx      │ │
+ │  │ rank routes              │  │                              │ │
+ │  └────────────┬─────────────┘  └──────────────┬───────────────┘ │
+ │               ▼                               ▼                 │
+ │            downloads/ONE_Inland_Rate_Processed_*.xlsx           │
+ └─────────────────────────┬───────────────────────────────────────┘
+                           ▼
+              ┌─────────────────────────┐
+              │ api_server.py (Flask)   │
+              │ REST API + data caching │
+              └────────────┬────────────┘
+                           ▼
+              ┌─────────────────────────┐
+              │ freight-ui/ (React/TS)  │
+              │ ONE | HAPAG | Summary   │
+              └─────────────────────────┘
+```
 
-#### ONE Line Data
-1. **Collect inland rates:**
+### Backend API (`api_server.py`)
+
+Flask REST API that serves processed data to the frontend.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/destinations` | List all ONE Line destinations |
+| `GET /api/container-types` | List container types |
+| `GET /api/routes/<dest>/<type>` | Ranked ONE routes |
+| `GET /api/hapag/destinations` | List HAPAG destinations |
+| `GET /api/hapag/route/<dest>/<type>` | HAPAG rates with sub-options |
+| `GET /api/health` | Health check |
+
+- Auto-detects the latest data files in `downloads/`
+- Caches data in memory for fast responses
+- Port: dynamic from 4000 (macOS/Linux) or 5000 (Windows), written to `.api_port`
+
+### Frontend (`freight-ui/`)
+
+- React 18 + TypeScript
+- Components: `RouteDashboard`, `HapagDashboard`, `SummaryDashboard`
+- CSS custom properties for theming
+- Reads API port from `REACT_APP_API_PORT` env var (falls back to `localhost:4000`)
+
+---
+
+## Usage
+
+### Data Collection & Processing
+
 ```bash
+# 1. Collect ONE Line inland rates
 python quick_download_refactored.py
-```
+#    → downloads/ONE_Inland_Rate_YYYYMMDD.xlsx
 
-2. **Process data:**
-```bash
+# 2. Process ONE data (merge ocean freight, rank routes)
 python ONE_processor.py
-```
+#    → downloads/ONE_Inland_Rate_Processed_YYYYMMDD_HHMMSS.xlsx
 
-#### HAPAG-Lloyd Data
-1. **Extract surcharges:**
-```bash
-python hapag_extractor.py
+# 3. Extract HAPAG-Lloyd surcharges (requires .env credentials)
+python hapag_checker.py
+#    → downloads/hapag_surcharges_YYYYMMDD.xlsx
 ```
-(Requires `.env` file with HAPAG credentials)
 
 ### Adding New Destinations
 
-1. **Extract destination configuration:**
 ```bash
+# 1. Extract location codes and POD mappings
 python url_checker_refactored.py "ROTTERDAM, NETHERLANDS"
-```
-This updates `destination_configs.json` with location codes and POD information.
+#    → updates destination_configs.json
 
-2. **Add to destinations list:**
-Edit `destinations.txt`:
-```
-ANCONA, ITALY
-ANTWERP, BELGIUM
-ROTTERDAM, NETHERLANDS  ← New addition
-```
+# 2. Add the destination to destinations.txt
+echo "ROTTERDAM, NETHERLANDS" >> destinations.txt
 
-3. **Collect data:**
-```bash
-python quick_download_refactored.py  # ONE Line
-python hapag_extractor.py            # HAPAG-Lloyd
+# 3. Collect and process data
+python quick_download_refactored.py   # ONE Line
+python hapag_checker.py               # HAPAG-Lloyd
+python ONE_processor.py               # Process ONE data
+
+# 4. Launch dashboard
+./start.sh   # or start.bat on Windows
 ```
 
-4. **Process data:**
-```bash
-python ONE_processor.py
-```
+### Weekly Data Refresh
 
-5. **Launch dashboard:**
-```bash
-start.bat
-```
+1. Run both scrapers: `quick_download_refactored.py` and `hapag_checker.py`
+2. Process ONE data: `python ONE_processor.py`
+3. Restart the servers (or re-run the start script)
 
 ---
 
-## Google Maps Integration
-
-### Embedded Maps
-- Uses public Google Maps iframe embed (no API key needed)
-- Displays route from POD to destination
-- Customizable zoom levels for grid vs single view
-- Falls back to "View in Google Maps" button if embed is blocked
-
-### Map Features
-- Grid View: Shows 3 maps side-by-side for top routes comparison
-- Compact Info: Minimal route information above each map
-- External Link: Button to open full directions in Google Maps
-- Location Cleaning: Removes region codes for clearer map queries
-
----
-
-## Project Structure
-
-```
-automation/
-├── start.bat                        # One-click launcher
-├── api_server.py                    # Flask REST API (multi-carrier)
-├── ONE_processor.py                 # ONE data processing pipeline
-├── hapag_extractor.py               # HAPAG data extraction (Playwright)
-├── quick_download_refactored.py     # ONE data collection (Selenium)
-├── url_checker_refactored.py        # Destination config extractor
-├── destinations.txt                 # Target destinations list
-├── destination_configs.json         # Location codes & POD mappings
-├── .env                             # HAPAG credentials (create manually)
-├── downloads/                       # Scraped & processed data
-│   ├── ONE_Inland_Rate_*.xlsx
-│   ├── ONE_Inland_Rate_Processed_*.xlsx
-│   └── hapag_surcharges_*.xlsx
-├── source/
-│   └── ocean_freight.xlsx          # Ocean freight rates
-├── hapag_module/                    # HAPAG extraction modules
-│   ├── auth_manager.py
-│   ├── browser_manager.py
-│   ├── config_loader.py
-│   ├── data_extractor.py
-│   ├── excel_exporter.py
-│   ├── main_runner.py
-│   └── quote_scraper.py
-├── quick_download_package/          # ONE scraper components
-│   ├── browser_manager.py
-│   ├── config_loader.py
-│   ├── destination_processor.py
-│   ├── excel_manager.py
-│   ├── table_scraper.py
-│   └── __init__.py
-├── url_checker_package/             # URL checker components
-│   ├── browser.py
-│   ├── config.py
-│   ├── config_manager.py
-│   ├── destination_selector.py
-│   ├── form_handler.py
-│   ├── processor.py
-│   ├── url_extractor.py
-│   └── __init__.py
-└── freight-ui/                      # React frontend
-    ├── src/
-    │   ├── components/              # React components
-    │   │   ├── OneDashboard.tsx     # ONE Line view
-    │   │   ├── HapagDashboard.tsx   # HAPAG-Lloyd view
-    │   │   ├── SummaryDashboard.tsx # Comparison view
-    │   │   ├── RouteTable.tsx
-    │   │   ├── RouteMap.tsx
-    │   │   ├── FiltersPanel.tsx
-    │   │   └── RouteTableTabs.tsx
-    │   ├── utils/
-    │   │   └── googleMapsHelper.ts
-    │   ├── styles/
-    │   │   └── app.css
-    │   └── types.ts
-    └── package.json
-```
-
----
-
-## Configuration Files
+## Configuration
 
 ### `destinations.txt`
+
 One destination per line:
+
 ```
 VALENCE, DROME, FRANCE
 LEUTKIRCH IM ALLGAEU, BW, GERMANY
@@ -318,7 +222,9 @@ MUENSTER, NW, GERMANY
 ```
 
 ### `destination_configs.json`
-Auto-generated by `url_checker.py`:
+
+Auto-generated by `url_checker_refactored.py`. Maps each destination to its location code and available PODs:
+
 ```json
 {
   "ANCONA, ITALY": {
@@ -329,137 +235,120 @@ Auto-generated by `url_checker.py`:
 ```
 
 ### `source/ocean_freight.xlsx`
-Ocean freight rates from Busan to various PODs:
-- Columns: POD, Currency, 20 FT, 40 FT
-- Updated manually with current market rates
+
+Ocean freight rates from Busan to various PODs. Columns: `POD`, `Currency`, `20 FT`, `40 FT`. Update manually with current market rates.
+
+### `.env`
+
+```
+HAPAG_EMAIL=your_email@example.com
+HAPAG_PASSWORD=your_password_here
+```
+
+---
+
+## Project Structure
+
+```
+ocean-freight-optimizer/
+├── start.sh                         # Launcher (macOS/Linux)
+├── start.bat                        # Launcher (Windows)
+├── api_server.py                    # Flask REST API
+├── .api_port                        # Dynamic API port (auto-generated)
+├── ONE_processor.py                 # ONE data processing pipeline
+├── hapag_checker.py                 # HAPAG data extraction entry point
+├── quick_download_refactored.py     # ONE data collection (Selenium)
+├── url_checker_refactored.py        # Destination config extractor
+├── debug_extraction.py              # HAPAG table extraction debugger
+├── destinations.txt                 # Target destinations list
+├── destination_configs.json         # Location codes & POD mappings
+├── .env                             # HAPAG credentials (create manually)
+│
+├── hapag_module/                    # HAPAG extraction package
+│   ├── auth_manager.py              #   Login & authentication
+│   ├── browser_manager.py           #   Playwright browser lifecycle
+│   ├── config_loader.py             #   Configuration loading
+│   ├── data_extractor.py            #   Table data extraction
+│   ├── excel_exporter.py            #   Excel output
+│   ├── main_runner.py               #   Orchestrator
+│   └── quote_scraper.py             #   Quote search & port selection
+│
+├── quick_download_package/          # ONE scraper package
+│   ├── browser_manager.py           #   Selenium browser lifecycle
+│   ├── config_loader.py             #   Configuration loading
+│   ├── data_processor.py            #   Data transformation
+│   ├── destination_processor.py     #   Per-destination processing
+│   ├── excel_manager.py             #   Excel output
+│   └── table_scraper.py             #   Table data extraction
+│
+├── url_checker_package/             # Destination config extractor package
+│   ├── browser.py
+│   ├── config.py
+│   ├── config_manager.py
+│   ├── destination_selector.py
+│   ├── error_summary.py
+│   ├── form_handler.py
+│   ├── processor.py
+│   └── url_extractor.py
+│
+├── downloads/                       # Scraped & processed data output
+│   ├── ONE_Inland_Rate_*.xlsx
+│   ├── ONE_Inland_Rate_Processed_*.xlsx
+│   └── hapag_surcharges_*.xlsx
+│
+├── source/
+│   └── ocean_freight.xlsx           # Ocean freight rates (manual)
+│
+├── freight-ui/                      # React frontend
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── App.tsx                   # Main app with tab navigation
+│       ├── config.ts                 # API URL configuration
+│       ├── types.ts                  # TypeScript type definitions
+│       ├── components/
+│       │   ├── RouteDashboard.tsx    # ONE Line dashboard
+│       │   ├── HapagDashboard.tsx    # HAPAG-Lloyd dashboard
+│       │   ├── SummaryDashboard.tsx  # Carrier comparison view
+│       │   ├── RouteTable.tsx        # Route data table
+│       │   ├── RouteTableTabs.tsx    # Tabbed table view
+│       │   ├── RouteMap.tsx          # Google Maps embed
+│       │   └── FiltersPanel.tsx      # Destination & container filters
+│       ├── styles/
+│       │   ├── app.css
+│       │   ├── global.css
+│       │   └── hapag-dashboard.css
+│       └── utils/
+│           └── googleMapsHelper.ts
+│
+└── docs/                            # Documentation
+    └── QUICK_DOWNLOAD_*.md          # Quick download package docs
+```
 
 ---
 
 ## Troubleshooting
 
-### HAPAG Authentication Issues
-- Verify credentials in `.env` file
-- Check HAPAG-Lloyd website is accessible
-- Ensure Playwright browsers are installed: `playwright install chromium`
-
-### API not loading HAPAG data
-- Run `python hapag_extractor.py` to generate data file
-- Check that `hapag_surcharges_*.xlsx` exists in `downloads/`
-- Verify API endpoint: `http://localhost:5000/api/hapag/destinations`
-
-### Sub-options not appearing in HAPAG view
-- Data must be in raw format (not preprocessed)
-- Sub-options are detected when Curr. column is empty
-- Check that landfreight rows have proper sub-option structure
-
-### Container type mismatch between carriers
-- ONE uses: 20 FT, 40 FT, 40 FT High Cube
-- HAPAG uses: 20STD, 40STD, 40HC
-- Summary dashboard auto-converts between formats
-
-### City name not matching in Summary view
-- City normalization removes hyphens and special characters
-- Check exact spelling in both data sources
-- Matching is case-insensitive
-
-### Browser opens twice
-- Ensure `BROWSER=none` is set in `start.bat` before npm start
-- Check `package.json` uses standard `react-scripts start` (no FAST_REFRESH)
-
-### Duplicate ranks (e.g., 1,2,2,3)
-- Fixed in `ONE_processor.py` using `method='dense'` for ranking
-- Reprocess data to get sequential ranks (1,2,3,4)
-
-### API not loading data
-- Check that processed Excel file exists in `downloads/`
-- Verify file name matches pattern: `ONE_Inland_Rate_Processed_*.xlsx`
-- Run health check: `http://localhost:5000/api/health`
-
-### Frontend build errors
-- Ensure TypeScript types are installed: `npm install @types/react @types/react-dom`
-- Check `tsconfig.json` has `"incremental": true` for faster builds
-
-### Maps not loading
-- Embedded maps use public Google Maps URL (no API key needed)
-- If embed is blocked, use "View in Google Maps" button
-- Check browser console for CORS or iframe errors
-
----
-
-## Tips
-
-- **Multi-Carrier Comparison:** Use Summary dashboard to compare ONE vs HAPAG rates side-by-side
-- **Sub-Options Selection:** HAPAG dashboard allows choosing between Combined Rail and Between transport modes
-- **Unified Container Selector:** Summary view synchronizes container types across both carriers automatically
-- **City Name Matching:** Handles variations like "ARQUES-LA-BATAILLE" vs "ARQUES LA BATAILLE"
-- **Faster Startup:** First run is slower; subsequent starts benefit from incremental compilation
-- **Server Logs:** Minimized windows remain in taskbar - click to view logs if needed
-- **Data Refresh:** Rerun extraction and processing scripts, then restart API server
-- **Multiple Container Types:** Switch between container sizes in all dashboard views
-- **Transport Mode Column:** Extracted from Remarks column (text before semicolon) for ONE data
-- **Remarks Column:** Toggle tab to see additional route information in ONE view
+| Problem | Solution |
+|---------|----------|
+| **HAPAG authentication fails** | Verify `HAPAG_EMAIL` and `HAPAG_PASSWORD` in `.env`. Ensure Playwright browsers are installed: `playwright install chromium` |
+| **API not loading HAPAG data** | Run `python hapag_checker.py` to generate data. Check `hapag_surcharges_*.xlsx` exists in `downloads/` |
+| **API not loading ONE data** | Verify `ONE_Inland_Rate_Processed_*.xlsx` exists in `downloads/`. Run health check at `/api/health` |
+| **Sub-options not showing** | Data must be in raw format. Sub-options are detected when the `Curr.` column is empty |
+| **Container type mismatch** | ONE uses `20 FT / 40 FT / 40 FT High Cube`; HAPAG uses `20STD / 40STD / 40HC`. The Summary dashboard auto-converts |
+| **City name not matching** | Normalization removes hyphens and special characters. Matching is case-insensitive |
+| **Duplicate ranks (1,2,2,3)** | Reprocess data with `python ONE_processor.py` — uses dense ranking method |
+| **Frontend build errors** | Run `npm install` in `freight-ui/`. Check that `tsconfig.json` has `"incremental": true` |
+| **Maps not loading** | Uses public Google Maps embed (no API key). Check browser console for CORS/iframe errors |
+| **Browser opens twice** | Ensure `BROWSER=none` is set in the start script before `npm start` |
 
 ---
 
 ## Notes
 
-- Internet connection required for scraping and maps
-- Chrome/Chromium browser launches automatically during data collection (don't close it)
-- Processing time: ~30 seconds per destination (ONE), ~1 minute per destination (HAPAG)
-- Map routes are for visualization purposes only
-- PODs with unavailable freight costs show estimation notes (marked with *)
-- HAPAG data preserves sub-options structure (Combined Rail, Between modes)
-- City name matching handles hyphens and special characters automatically
-- Container type conversion between carriers is automatic in Summary view
-
----
-
-## Key Features Summary
-
-### Multi-Carrier Support
-- **ONE Line:** Processed inland rates with ocean freight integration
-- **HAPAG-Lloyd:** Raw surcharge data with landfreight sub-options
-
-### Intelligent Data Processing
-- **Transport Mode Extraction:** Automatically parsed from Remarks column
-- **City Name Normalization:** Handles variations and special characters
-- **Container Type Synchronization:** Auto-converts between carrier formats
-- **Sub-Options Preservation:** HAPAG data maintains alternative transport modes
-
-### Professional UI
-- **Three Dashboard Views:** Dedicated views for each carrier plus comparison
-- **Unified Selectors:** Single container dropdown updates all views
-- **Side-by-Side Comparison:** Direct rate comparison in Summary view
-- **Sub-Option Selection:** Dropdown for HAPAG alternative transport modes
-- **Google Maps Integration:** Embedded route visualization
-
----
-
-## Regular Workflow
-
-### Weekly Data Update
-1. Run scrapers for both carriers:
-   ```bash
-   python quick_download_refactored.py  # ONE Line
-   python hapag_extractor.py            # HAPAG-Lloyd
-   ```
-2. Process ONE data: `python ONE_processor.py`
-3. Restart servers or use `start.bat`
-
-### Dashboard Usage
-1. Launch: `start.bat`
-2. **ONE Dashboard:** View ONE Line rates with top 3 routes and map comparison
-3. **HAPAG Dashboard:** View HAPAG-Lloyd surcharges with sub-option selection
-4. **Summary Dashboard:** Compare both carriers side-by-side
-5. Select destination and container type in any view
-6. Compare rates, transport modes, and route options
-
----
-
-## Support
-
-For technical issues:
-- Check server logs in minimized windows
-- Verify data files in `downloads/` folder
-- Review browser console for frontend errors
-- Ensure all dependencies are installed
+- Internet connection required for data scraping and map display
+- Chrome/Chromium launches automatically during scraping — don't close it
+- Typical processing time: ~30s per destination (ONE), ~1 min per destination (HAPAG)
+- Map routes are for visualization only
+- PODs with unavailable freight costs show estimation notes (marked with `*`)
+- First launch is slower; subsequent starts benefit from incremental TypeScript compilation

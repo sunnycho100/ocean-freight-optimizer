@@ -9,22 +9,28 @@
 
 :root {
   /* Brand Colors */
-  --color-primary: #007B99;
-  --color-primary-dark: #006680;
-  --color-primary-light: #E6F3F7;
-  --color-primary-lighter: #F0F8FA;
+  --color-primary: #0891b2;
+  --color-primary-dark: #0e7490;
+  --color-primary-light: #e0f2fe;
+  --color-primary-lighter: #f0f9ff;
+  --color-accent: #06b6d4;
   
   /* Neutrals */
-  --color-bg: #F7F9FB;
+  --color-bg: #f0f4f8;
   --color-white: #FFFFFF;
-  --color-text: #1A1A1A;
-  --color-text-secondary: #5A6A72;
-  --color-border: #D8DEE3;
-  --color-border-light: #E8EDEF;
+  --color-text: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-border: rgba(148, 163, 184, 0.3);
+  --color-border-light: rgba(148, 163, 184, 0.15);
   
   /* Warning (muted) */
-  --color-warning-bg: #F5F5F5;
-  --color-warning-border: #A0A8AD;
+  --color-warning-bg: #fafafa;
+  --color-warning-border: #94a3b8;
+  
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-blur: 16px;
   
   /* Spacing (8px grid) */
   --space-xs: 4px;
@@ -35,7 +41,7 @@
   --space-xxl: 48px;
   
   /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
     Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -44,12 +50,19 @@
   --font-size-xxl: 1.75rem;
   
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   
   /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html {
@@ -59,9 +72,40 @@ html {
 
 body {
   font-family: var(--font-family);
-  background-color: var(--color-bg);
+  background: linear-gradient(135deg, #e0e7ee 0%, #d5e5f0 30%, #e8eef5 60%, #dde8f0 100%);
+  background-attachment: fixed;
   color: var(--color-text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ===== Focus States ===== */
@@ -85,23 +129,28 @@ button {
 
 select {
   appearance: none;
-  background-color: var(--color-white);
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-xl) var(--space-sm) var(--space-md);
+  padding: 10px var(--space-xl) 10px var(--space-md);
   cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235A6A72' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   min-width: 200px;
+  transition: all var(--transition-fast);
 }
 
 select:hover {
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.08);
 }
 
 select:focus {
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12);
 }
 
 button {
@@ -110,7 +159,7 @@ button {
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-lg);
   font-weight: 500;
-  transition: background-color 0.15s ease;
+  transition: all var(--transition-base);
 }
 
 /* ===== Utility Classes ===== */

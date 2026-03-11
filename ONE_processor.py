@@ -222,7 +222,7 @@ if __name__ == '__main__':
         print("Please run quick_download_refactored.py first to generate the inland rate file.")
         exit(1)
     
-    ocean_file = r'source\ocean_freight.xlsx'
+    ocean_file = os.path.join('source', 'ocean_freight.xlsx')
     
     # Process the data
     df, output_file = process_inland_rates(inland_file, ocean_file)

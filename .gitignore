@@ -39,6 +39,15 @@ wheels/
 .DS_Store
 Thumbs.db
 
+# Node
+node_modules/
+
+# WebDriver Manager (chromedriver cache)
+.wdm/
+
+# Runtime files
+.api_port
+
 # Project specific
 downloads/*.xlsx
 error_checks/*.txt

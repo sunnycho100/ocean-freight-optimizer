@@ -1,40 +1,46 @@
-/* HAPAG Dashboard - matching ONE tab design */
+/* HAPAG Dashboard - matching glassmorphism design */
 
 /* Container Tabs */
 .hapag-container-tabs {
-  display: flex;
-  gap: 10px;
+  display: inline-flex;
+  gap: 4px;
   margin-bottom: var(--space-lg);
-  border-bottom: 2px solid var(--color-border-light);
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  animation: fadeInUp 0.5s ease 0.25s both;
 }
 
 .hapag-tab {
-  padding: 12px 24px;
+  padding: 10px 24px;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--color-text-secondary);
-  border-bottom: 3px solid transparent;
-  transition: all 0.3s;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
   position: relative;
-  bottom: -2px;
 }
 
 .hapag-tab:hover:not(.disabled) {
   color: var(--color-primary);
-  background: var(--color-primary-lighter);
+  background: rgba(224, 242, 254, 0.4);
 }
 
 .hapag-tab.active {
   color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: var(--color-white);
   font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .hapag-tab.disabled {
-  color: #ccc;
+  color: #cbd5e1;
   cursor: not-allowed;
   opacity: 0.5;
   text-decoration: line-through;
@@ -43,11 +49,11 @@
 /* Details Header (clickable) */
 .hapag-details-header {
   user-select: none;
-  transition: background-color 0.2s;
+  transition: background-color var(--transition-fast);
 }
 
 .hapag-details-header:hover {
-  background-color: var(--color-bg);
+  background-color: rgba(241, 245, 249, 0.5);
 }
 
 /* Empty states using standard card classes */
@@ -56,10 +62,11 @@
   padding: var(--space-xxl);
   color: var(--color-text-secondary);
   font-size: var(--font-size-lg);
+  animation: fadeIn 0.4s ease;
 }
 
 .error-state {
-  color: #d32f2f;
+  color: #dc2626;
 }
 
 @media (max-width: 768px) {
