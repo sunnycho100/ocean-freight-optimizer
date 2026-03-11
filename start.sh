@@ -47,6 +47,9 @@ if [ ! -d "freight-ui/node_modules" ]; then
     cd ..
 fi
 
+# Clean up stale port file from previous runs
+rm -f .api_port
+
 # Start the Flask API server in the background
 echo "Starting API server (will auto-select port starting from 4000)..."
 if [ -d ".venv" ]; then

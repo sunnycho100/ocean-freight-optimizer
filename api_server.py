@@ -314,6 +314,8 @@ if __name__ == '__main__':
     print(f"Starting API server on http://localhost:{port}")
     print(f"Data file: {get_latest_processed_file()}")
     # Write port to file so start.sh can read it
-    with open('.api_port', 'w') as f:
-        f.write(str(port))
+    # Only write on the main process, not the debug reloader child
+    if not os.environ.get('WERKZEUG_RUN_MAIN'):
+        with open('.api_port', 'w') as f:
+            f.write(str(port))
     app.run(host='0.0.0.0', port=port, debug=True)
