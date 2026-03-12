@@ -3,10 +3,12 @@ import { HapagLaneData, HapagChargeItem, HapagSubOption } from '../types';
 import '../styles/hapag-dashboard.css';
 
 import { API_BASE } from '../config';
+import { useI18n } from '../i18n';
 
 type ContainerType = '20STD' | '40STD' | '40HC';
 
 const HapagDashboard: React.FC = () => {
+  const { t } = useI18n();
   const [destinations, setDestinations] = useState<string[]>([]);
   const [selectedDestination, setSelectedDestination] = useState<string>('');
   const [selectedContainer, setSelectedContainer] = useState<ContainerType>('20STD');
@@ -38,7 +40,7 @@ const HapagDashboard: React.FC = () => {
           setSelectedDestination(data[0]);
         }
       } catch (err) {
-        setError('Failed to connect to API. Make sure the server is running.');
+        setError(t('apiError'));
         console.error(err);
       } finally {
         setLoading(false);
@@ -169,7 +171,7 @@ const HapagDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="card">
-        <div className="empty-state">Loading...</div>
+        <div className="empty-state">{t('loading')}</div>
       </div>
     );
   }
@@ -185,7 +187,7 @@ const HapagDashboard: React.FC = () => {
   if (!laneData) {
     return (
       <div className="card">
-        <div className="empty-state">Select a destination to view routes</div>
+        <div className="empty-state">{t('selectDestination')}</div>
       </div>
     );
   }
@@ -197,7 +199,7 @@ const HapagDashboard: React.FC = () => {
     <>
       {/* Header */}
       <header className="header">
-        <h1 className="header-title">HAPAG-LLOYD Route Analyzer</h1>
+        <h1 className="header-title">{t('hapagRouteAnalyzer')}</h1>
         <p className="header-subtitle">
           {route.from} → {route.via} → {route.to}
         </p>
@@ -208,7 +210,7 @@ const HapagDashboard: React.FC = () => {
         <div className="card-body">
           <div className="filters-content">
             <div className="filter-group">
-              <label className="filter-label">Destination</label>
+              <label className="filter-label">{t('destination')}</label>
               <select
                 value={selectedDestination}
                 onChange={(e) => setSelectedDestination(e.target.value)}
@@ -250,16 +252,16 @@ const HapagDashboard: React.FC = () => {
       {/* Summary Table */}
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Rate Summary</h2>
+          <h2 className="card-title">{t('rateSummary')}</h2>
         </div>
         <div className="card-body">
           <div className="route-table-container">
             <table className="route-table">
               <thead>
                 <tr>
-                  <th>Charge Type</th>
-                  <th>Description</th>
-                  <th style={{ textAlign: 'right' }}>Rate</th>
+                  <th>{t('chargeType')}</th>
+                  <th>{t('description')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('rate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -271,7 +273,7 @@ const HapagDashboard: React.FC = () => {
                       {route.oceanFreight.description}
                       {route.oceanFreight.curr === 'USD' && (
                         <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', marginTop: '4px' }}>
-                          *conversion rate 0.86
+                          {t('conversionRate')}
                         </div>
                       )}
                     </td>
@@ -338,7 +340,7 @@ const HapagDashboard: React.FC = () => {
 
                 {/* Total Rate */}
                 <tr style={{ borderTop: '2px solid var(--color-primary)', backgroundColor: 'var(--color-primary-lighter)' }}>
-                  <td><strong>Total Rate</strong></td>
+                  <td><strong>{t('totalRate')}</strong></td>
                   <td></td>
                   <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '18px', color: 'var(--color-primary)' }}>
                     EUR {calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -358,7 +360,7 @@ const HapagDashboard: React.FC = () => {
           style={{ cursor: 'pointer' }}
         >
           <h2 className="card-title">
-            More Details {isDetailsExpanded ? '▼' : '▶'}
+            {t('moreDetails')} {isDetailsExpanded ? '▼' : '▶'}
           </h2>
         </div>
         {isDetailsExpanded && (
@@ -367,9 +369,9 @@ const HapagDashboard: React.FC = () => {
               <table className="route-table">
                 <thead>
                   <tr>
-                    <th>Charge Category</th>
-                    <th>Description</th>
-                    <th style={{ textAlign: 'right' }}>Rate</th>
+                    <th>{t('chargeCategory')}</th>
+                    <th>{t('description')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('rate')}</th>
                   </tr>
                 </thead>
                 <tbody>

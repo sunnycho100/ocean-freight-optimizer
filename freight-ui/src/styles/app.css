@@ -90,6 +90,31 @@
   box-shadow: 0 2px 8px rgba(8, 145, 178, 0.15), 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lang-toggle {
+  padding: 8px 16px;
+  border: 2px solid var(--color-primary);
+  border-radius: 50px;
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.lang-toggle:hover {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
 .app-container {
   max-width: 1140px;
   margin: 0 auto;

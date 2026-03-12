@@ -1,5 +1,6 @@
 import React from 'react';
 import { FilterState } from '../types';
+import { useI18n } from '../i18n';
 
 interface FiltersPanelProps {
   destinations: string[];
@@ -16,6 +17,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
   onFilterChange,
   onApply,
 }) => {
+  const { t } = useI18n();
   return (
     <div className="card filters-panel">
       <div className="card-body">
@@ -23,7 +25,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
           {/* Destination Filter */}
           <div className="filter-group">
             <label htmlFor="destination-select" className="filter-label">
-              Destination
+              {t('destination')}
             </label>
             <select
               id="destination-select"
@@ -41,7 +43,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
           {/* Container Type Filter */}
           <div className="filter-group">
             <label htmlFor="container-select" className="filter-label">
-              Container Type
+              {t('containerType')}
             </label>
             <select
               id="container-select"
@@ -64,13 +66,13 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
               onClick={onApply}
               disabled={destinations.length === 0}
             >
-              Apply
+              {t('apply')}
             </button>
           </div>
 
           {/* Data Source Indicator */}
           <div className="data-source">
-            <span className="data-source-label">Source:</span>
+            <span className="data-source-label">{t('source')}:</span>
             <span className="data-source-value">Excel (API)</span>
           </div>
         </div>

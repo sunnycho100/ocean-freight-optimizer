@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LaneData, HapagLaneData } from '../types';
 
 import { API_BASE } from '../config';
+import { useI18n } from '../i18n';
 
 interface DestinationOption {
   destination: string;
@@ -15,6 +16,7 @@ interface DestinationMapping {
 }
 
 const SummaryDashboard: React.FC = () => {
+  const { t } = useI18n();
   const [destinationMappings, setDestinationMappings] = useState<DestinationMapping[]>([]);
   const [selectedMapping, setSelectedMapping] = useState<DestinationMapping | null>(null);
   const [oneContainerType, setOneContainerType] = useState<string>('40 FT High Cube Dry');
@@ -164,7 +166,7 @@ const SummaryDashboard: React.FC = () => {
 
         // If both failed, show error
         if (oneRes.status === 'rejected' && hapagRes.status === 'rejected') {
-          setError('Failed to fetch destinations. Please ensure the API server is running.');
+          setError(t('apiError'));
         }
       } catch (err) {
         console.error('Error fetching destinations:', err);
@@ -320,7 +322,7 @@ const SummaryDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="card">
-        <div className="empty-state">Loading...</div>
+        <div className="empty-state">{t('loading')}</div>
       </div>
     );
   }
@@ -337,9 +339,9 @@ const SummaryDashboard: React.FC = () => {
     <>
       {/* Header */}
       <header className="header">
-        <h1 className="header-title">Rate Comparison Summary</h1>
+        <h1 className="header-title">{t('rateComparisonSummary')}</h1>
         <p className="header-subtitle">
-          Comparing ONE vs HAPAG-LLOYD Routes
+          {t('comparingRoutes')}
         </p>
       </header>
 
@@ -348,7 +350,7 @@ const SummaryDashboard: React.FC = () => {
         <div className="card-body">
           <div className="filters-content">
             <div className="filter-group">
-              <label className="filter-label">Destination</label>
+              <label className="filter-label">{t('destination')}</label>
               <select
                 value={selectedMapping?.displayName || ''}
                 onChange={(e) => {
@@ -366,7 +368,7 @@ const SummaryDashboard: React.FC = () => {
               </select>
             </div>
             <div className="filter-group">
-              <label className="filter-label">Container Type</label>
+              <label className="filter-label">{t('containerType')}</label>
               <select
                 value={oneContainerType}
                 onChange={(e) => {
@@ -388,7 +390,7 @@ const SummaryDashboard: React.FC = () => {
         <div className="card-body">
           <div style={{ textAlign: 'left' }}>
             <h2 style={{ color: 'var(--color-primary)', fontSize: '20px', margin: '0 0 4px 0', fontWeight: 600 }}>
-              Best Rate: {winner} {winnerRoute && <span style={{ fontWeight: 400, fontSize: '16px' }}>({winnerRoute})</span>}
+              {t('bestRate')}: {winner} {winnerRoute && <span style={{ fontWeight: 400, fontSize: '16px' }}>({winnerRoute})</span>}
             </h2>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: '16px', margin: 0, fontWeight: 600 }}>
               EUR {winner === 'ONE' 
@@ -403,7 +405,7 @@ const SummaryDashboard: React.FC = () => {
       {/* ONE Routes */}
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">ONE - Top 3 Routes ({getContainerShortName(oneContainerType)})</h2>
+          <h2 className="card-title">{t('oneTop3')} ({getContainerShortName(oneContainerType)})</h2>
         </div>
         <div className="card-body">
           {topThreeONE.length > 0 ? (
@@ -411,12 +413,12 @@ const SummaryDashboard: React.FC = () => {
               <table className="route-table">
                 <thead>
                   <tr>
-                    <th>Rank</th>
-                    <th>POD (Intermediate Port)</th>
-                    <th>Transport Mode</th>
-                    <th style={{ textAlign: 'right' }}>Inland (EUR)</th>
-                    <th style={{ textAlign: 'right' }}>Ocean (EUR)</th>
-                    <th style={{ textAlign: 'right' }}>Total (EUR)</th>
+                    <th>{t('rank')}</th>
+                    <th>{t('pod')}</th>
+                    <th>{t('transportMode')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('inlandEUR')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('oceanEUR')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('totalEUR')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -442,7 +444,7 @@ const SummaryDashboard: React.FC = () => {
               </table>
             </div>
           ) : (
-            <div className="empty-state">No ONE routes available</div>
+            <div className="empty-state">{t('noOneRoutes')}</div>
           )}
         </div>
       </div>
@@ -461,10 +463,10 @@ const SummaryDashboard: React.FC = () => {
               <table className="route-table">
                 <thead>
                   <tr>
-                    <th>Route</th>
-                    <th>Charge Type</th>
-                    <th style={{ textAlign: 'right' }}>Rate</th>
-                    <th style={{ textAlign: 'right' }}>EUR Equivalent</th>
+                    <th>{t('route')}</th>
+                    <th>{t('chargeType')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('rate')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('eurEquivalent')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -557,7 +559,7 @@ const SummaryDashboard: React.FC = () => {
                   {/* Total */}
                   <tr style={{ borderTop: '2px solid var(--color-primary)', backgroundColor: 'var(--color-primary-lighter)' }}>
                     <td></td>
-                    <td><strong>Total Rate</strong></td>
+                    <td><strong>{t('totalRate')}</strong></td>
                     <td></td>
                     <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '18px', color: 'var(--color-primary)' }}>
                       {hapagTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -567,7 +569,7 @@ const SummaryDashboard: React.FC = () => {
               </table>
             </div>
           ) : (
-            <div className="empty-state">No HAPAG routes available</div>
+            <div className="empty-state">{t('noHapagRoutes')}</div>
           )}
         </div>
       </div>

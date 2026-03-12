@@ -5,8 +5,10 @@ import RouteTableTabs from './RouteTableTabs';
 import RouteMap from './RouteMap';
 import { FilterState, LaneData, Route } from '../types';
 import { API_BASE } from '../config';
+import { useI18n } from '../i18n';
 
 const RouteDashboard: React.FC = () => {
+  const { t } = useI18n();
   const [destinations, setDestinations] = useState<string[]>([]);
   const [containerTypes, setContainerTypes] = useState<string[]>([]);
   const [laneData, setLaneData] = useState<LaneData | null>(null);
@@ -50,7 +52,7 @@ const RouteDashboard: React.FC = () => {
           setAppliedFilters(defaultFilters);
         }
       } catch (err) {
-        setError('Failed to connect to API. Make sure the server is running.');
+        setError(t('apiError'));
         console.error(err);
       } finally {
         setLoading(false);
@@ -116,9 +118,9 @@ const RouteDashboard: React.FC = () => {
     <>
       {/* Header */}
       <header className="header">
-        <h1 className="header-title">ONE Route Optimizer</h1>
+        <h1 className="header-title">{t('oneRouteOptimizer')}</h1>
         <p className="header-subtitle">
-          Busan (KR) → POD → Inland Destination
+          {t('routeSubtitle')}
         </p>
       </header>
 
@@ -138,7 +140,7 @@ const RouteDashboard: React.FC = () => {
       <section className="results-section" aria-label="Route Results">
         {loading ? (
           <div className="card">
-            <div className="empty-state">Loading...</div>
+            <div className="empty-state">{t('loading')}</div>
           </div>
         ) : error ? (
           <div className="card">
@@ -147,7 +149,7 @@ const RouteDashboard: React.FC = () => {
         ) : laneData ? (
           <>
             <RouteTable
-              title="Top 3 Recommended Routes"
+              title={t('top3Routes')}
               routes={topRoutes}
               currency={laneData.currency}
               variant="top"
@@ -156,8 +158,8 @@ const RouteDashboard: React.FC = () => {
 
             <div className="card">
               <div className="card-header card-header--map-compare">
-                <h2 className="card-title">Route Comparison on the Map</h2>
-                <span className="map-compare-note">* map routes are for visualization purposes</span>
+                <h2 className="card-title">{t('routeComparison')}</h2>
+                <span className="map-compare-note">{t('mapNote')}</span>
               </div>
               <div className="card-body">
                 <div className="map-grid" aria-label="Top routes map comparison">
@@ -166,7 +168,7 @@ const RouteDashboard: React.FC = () => {
                       key={route.rank}
                       pod={route.pod}
                       destination={laneData.destination}
-                      rankLabel={`Rank ${route.rank} Route`}
+                      rankLabel={t('rankRoute', { rank: route.rank })}
                       variant="grid"
                     />
                   ))}
@@ -176,7 +178,7 @@ const RouteDashboard: React.FC = () => {
 
             {worstRoute && (
               <RouteTable
-                title="Highest Cost Route"
+                title={t('highestCostRoute')}
                 routes={[worstRoute]}
                 currency={laneData.currency}
                 variant="worst"
@@ -187,7 +189,7 @@ const RouteDashboard: React.FC = () => {
         ) : (
           <div className="card">
             <div className="empty-state">
-              No route data available for the selected criteria.
+              {t('noData')}
             </div>
           </div>
         )}

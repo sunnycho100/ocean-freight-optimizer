@@ -4,6 +4,7 @@ import {
   generateGoogleMapsEmbedUrl,
   cleanLocationString,
 } from '../utils/googleMapsHelper';
+import { useI18n } from '../i18n';
 
 interface RouteMapProps {
   pod: string;
@@ -13,6 +14,7 @@ interface RouteMapProps {
 }
 
 const RouteMap: React.FC<RouteMapProps> = ({ pod, destination, rankLabel, variant = 'single' }) => {
+  const { t } = useI18n();
   if (!pod || !destination) return null;
   
   const mapsUrl = generateGoogleMapsDirectionsUrl(pod, destination);
@@ -28,7 +30,7 @@ const RouteMap: React.FC<RouteMapProps> = ({ pod, destination, rankLabel, varian
   return (
     <div className={`route-map-container ${isGrid ? 'route-map--grid' : ''}`}>
       <div className="route-info">
-        <h3 className="route-info-title">{rankLabel || 'Route Information'}</h3>
+        <h3 className="route-info-title">{rankLabel || t('routeInformation')}</h3>
         <div className={`route-path ${isGrid ? 'route-path--compact' : ''}`}>
           <div className="route-location">
             <span className="route-value">{cleanPod}</span>
@@ -68,17 +70,11 @@ const RouteMap: React.FC<RouteMapProps> = ({ pod, destination, rankLabel, varian
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
           <circle cx="12" cy="10" r="3"/>
         </svg>
-        View in Google Maps
+        {t('viewInGoogleMaps')}
       </button>
 
-      {!isGrid && (
-        <p className="route-note">
-          Opens Google Maps in a new tab with directions from {cleanPod} to {cleanDest}
-        </p>
-      )}
-
       <p className="map-caption">
-        Inline preview. Use the button for full directions.
+        {t('mapsCaption')}
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Route } from '../types';
+import { useI18n } from '../i18n';
 
 interface RouteTableProps {
   title: string;
@@ -29,6 +30,7 @@ const RouteTable: React.FC<RouteTableProps> = ({
   variant,
   showRemarks = false,
 }) => {
+  const { t } = useI18n();
   const cardClass = variant === 'worst' ? 'card card--worst' : 'card';
   const badgeClass = variant === 'worst' ? 'rank-badge rank-badge--worst' : 'rank-badge rank-badge--top';
 
@@ -45,16 +47,16 @@ const RouteTable: React.FC<RouteTableProps> = ({
           <table className="route-table">
             <thead>
               <tr>
-                <th className="col-rank">Rank</th>
-                <th>POD (Intermediate Port)</th>
+                <th className="col-rank">{t('rank')}</th>
+                <th>{t('pod')}</th>
                 {showRemarks ? (
-                  <th>Remarks</th>
+                  <th>{t('remarks')}</th>
                 ) : (
-                  <th>Transport Mode</th>
+                  <th>{t('transportMode')}</th>
                 )}
-                <th className="col-rate">Inland</th>
-                <th className="col-rate">Ocean</th>
-                <th className="col-rate">Total Rate (EUR)</th>
+                <th className="col-rate">{t('inland')}</th>
+                <th className="col-rate">{t('ocean')}</th>
+                <th className="col-rate">{t('totalRateEUR')}</th>
               </tr>
             </thead>
             <tbody>
