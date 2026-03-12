@@ -51,7 +51,11 @@ class FreightDataLoader:
         if self.one_data is None:
             return pd.DataFrame()
         df = self.one_data
-        mask = df['Destination'].str.upper() == destination.upper()
+        dest_upper = destination.upper()
+        # Try exact match first, then contains match for partial names
+        mask = df['Destination'].str.upper() == dest_upper
+        if not mask.any():
+            mask = df['Destination'].str.upper().str.contains(dest_upper, na=False)
         if container_type:
             mask &= df['Container Type & Size'].str.upper() == container_type.upper()
         return df[mask].sort_values('Total Rate', ascending=True)
@@ -60,7 +64,10 @@ class FreightDataLoader:
         """Filter HAPAG data by destination."""
         if self.hapag_data is None:
             return pd.DataFrame()
-        mask = self.hapag_data['To'].str.upper() == destination.upper()
+        dest_upper = destination.upper()
+        mask = self.hapag_data['To'].str.upper() == dest_upper
+        if not mask.any():
+            mask = self.hapag_data['To'].str.upper().str.contains(dest_upper, na=False)
         return self.hapag_data[mask]
 
     def get_cheapest_route(self, destination: str, container_type: str) -> dict:

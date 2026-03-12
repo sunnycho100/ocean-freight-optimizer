@@ -3,6 +3,7 @@ Analyze the user's question, pull relevant data, and build
 the context that gets sent to the LLM.
 """
 import re
+import difflib
 from .data_loader import FreightDataLoader
 
 
@@ -16,6 +17,8 @@ class ContextBuilder:
         container_types = self.data.get_container_types()
         data_summary = self.data.summarize_data()
 
+        dest_list = ', '.join(destinations) if destinations else 'N/A'
+
         return (
             "You are a freight rate assistant for the Ocean Freight Optimizer system. "
             "You help users find the best shipping routes, compare carrier rates, and understand freight costs.\n\n"
@@ -25,14 +28,17 @@ class ContextBuilder:
             "Data fields for HAPAG: From, To, Via, Description (charge types like Ocean Freight, "
             "Destination Landfreight, THC, ISPS), Currency, 20STD, 40STD, 40HC rates\n\n"
             f"Available container types: {', '.join(container_types) if container_types else 'N/A'}\n"
-            f"Number of destinations: {len(destinations)}\n"
             f"Data summary: {data_summary}\n\n"
+            f"Available destinations (exact names in database):\n{dest_list}\n\n"
             "Rules:\n"
             "- Answer ONLY based on the provided data. Do not make up rates or routes.\n"
             "- If data is not available for a query, say so clearly.\n"
+            "- If the user's destination name is misspelled or partial, match it to the closest "
+            "available destination from the list above and note which destination you matched.\n"
             "- Format currency values with proper symbols (€ for EUR, $ for USD).\n"
             "- When comparing carriers, present data in a clear structured format.\n"
-            "- Be concise but thorough."
+            "- Be concise but thorough.\n"
+            "- You can respond in the same language the user writes in (e.g., Korean, English)."
         )
 
     def _detect_intent(self, message: str) -> dict:
@@ -48,7 +54,7 @@ class ContextBuilder:
         # Detect carrier
         if 'hapag' in msg_lower:
             intent['carrier'] = 'hapag'
-        if re.search(r'\bone\b', msg_lower) and 'one line' in msg_lower or re.search(r'\bone\s', msg_lower):
+        if 'one line' in msg_lower or re.search(r'\bone\b', msg_lower):
             intent['carrier'] = 'one'
 
         # Detect comparison intent
@@ -63,20 +69,9 @@ class ContextBuilder:
         elif any(w in msg_lower for w in ['all', 'list', 'show', 'available']):
             intent['type'] = 'list'
 
-        # Detect destination
+        # Detect destination via fuzzy matching
         all_destinations = self.data.get_all_destinations()
-        for dest in all_destinations:
-            # Match by full name or key parts of the destination name
-            dest_parts = [p.strip().lower() for p in dest.replace(',', ' ').split() if len(p.strip()) > 2]
-            for part in dest_parts:
-                if part in msg_lower and part not in ('germany', 'france', 'netherlands', 'belgium',
-                                                       'italy', 'spain', 'poland', 'austria',
-                                                       'finland', 'sweden', 'norway', 'denmark',
-                                                       'the', 'and', 'for'):
-                    intent['destination'] = dest
-                    break
-            if intent['destination']:
-                break
+        intent['destination'] = self._match_destination(msg_lower, all_destinations)
 
         # Detect container type
         container_types = self.data.get_container_types()
@@ -100,6 +95,61 @@ class ContextBuilder:
                 break
 
         return intent
+
+    def _match_destination(self, msg_lower: str, destinations: list) -> str | None:
+        """Fuzzy-match a destination from the user message.
+
+        Strategy:
+        1. Exact substring match against city names (longest first).
+        2. difflib fuzzy match for typos / partial names.
+        """
+        # Build lookup: normalized city name -> full canonical destination
+        city_to_dest: dict[str, str] = {}
+        for dest in destinations:
+            city = dest.split(',')[0].strip().lower()
+            city_to_dest[city] = dest
+            # Also store a no-space/no-hyphen variant for typo matching
+            squashed = re.sub(r'[\s\-]+', '', city)
+            if squashed != city:
+                city_to_dest[squashed] = dest
+
+        # 1. Direct substring (longest city name first to avoid partial false positives)
+        for name in sorted(city_to_dest, key=len, reverse=True):
+            if len(name) > 2 and name in msg_lower:
+                return city_to_dest[name]
+
+        # 2. Fuzzy match against tokens extracted from the message
+        stop_words = {
+            'the', 'and', 'for', 'from', 'show', 'list', 'all', 'routes', 'route',
+            'rate', 'rates', 'price', 'prices', 'cheapest', 'best', 'compare',
+            'transport', 'mode', 'inland', 'ocean', 'total', 'truck', 'barge',
+            'container', 'dry', 'high', 'cube', 'standard', 'pod', 'one', 'hapag',
+            'what', 'which', 'how', 'much', 'cost', 'freight', 'line', 'rank',
+            'hello', 'please', 'thanks', 'thank', 'help', 'can', 'tell', 'about',
+            'are', 'you', 'get', 'give', 'want', 'need', 'know', 'find', 'any',
+            # Country / region names (not city names)
+            'france', 'germany', 'belgium', 'netherlands', 'italy', 'spain',
+            'poland', 'austria', 'hungary', 'finland', 'sweden', 'norway',
+            'denmark', 'europe', 'asia', 'korea', 'busan',
+        }
+        tokens = [t for t in re.findall(r'[a-z\-]{3,}', msg_lower) if t not in stop_words]
+
+        # Build candidates: individual tokens + consecutive pairs (with/without space)
+        candidates = list(tokens)
+        for i in range(len(tokens) - 1):
+            candidates.append(f"{tokens[i]} {tokens[i+1]}")
+            candidates.append(f"{tokens[i]}{tokens[i+1]}")
+
+        city_names = list(city_to_dest.keys())
+        for candidate in candidates:
+            # Require candidate to be at least 4 chars for fuzzy matching
+            if len(candidate) < 4:
+                continue
+            matches = difflib.get_close_matches(candidate, city_names, n=1, cutoff=0.65)
+            if matches:
+                return city_to_dest[matches[0]]
+
+        return None
 
     def _format_one_data(self, routes) -> str:
         """Format ONE route data as text for the LLM context."""

@@ -142,34 +142,95 @@ class ContextBuilder:
 
     def _build_system_prompt(self) -> str:
         """
-        Static system prompt explaining:
+        System prompt explaining:
         - What this system does (freight rate comparison)
         - Available carriers (ONE Line, HAPAG-Lloyd)
         - Data fields (POD, inland rate, ocean rate, total rate, etc.)
-        - Available destinations
+        - Full list of available destination names (for LLM fallback matching)
         - Container types
+        - Rules: answer from data only, match misspelled destinations,
+          respond in user's language (Korean, English, etc.)
         """
 
-    def build_context(self, user_message: str) -> list[dict]:
+    def _match_destination(self, msg_lower: str, destinations: list) -> str | None:
         """
-        1. Parse intent (destination? carrier? comparison? general?)
-        2. Query DataFrames for relevant rows
+        Two-step fuzzy matching:
+        1. Exact substring scan (longest city name first, + squashed variants)
+        2. difflib.get_close_matches() on message tokens (cutoff=0.65)
+        Returns the canonical destination name or None.
+        """
+
+    def build_context(self, user_message: str, history: list = None) -> list[dict]:
+        """
+        1. Parse intent (destination via fuzzy match, carrier, comparison, general?)
+        2. Query DataFrames for relevant rows (with contains-fallback)
         3. Format as compact text/JSON
-        4. Return [system_prompt, data_context, user_message]
+        4. Return [system_prompt, ...history, data_context + user_message]
         """
 ```
 
-Intent detection can be simple keyword matching — no NLP model needed:
+Intent detection uses keyword matching for query type + **fuzzy matching** for destinations:
 
 | Keywords detected | Data pulled |
 |-------------------|-------------|
-| Destination name found | Filter to that destination |
+| Destination name found (fuzzy) | Filter to that destination |
 | "cheapest", "lowest", "best" | Sort by total rate, show top N |
 | "compare", "vs", "versus" | Pull both ONE and HAPAG data |
 | "hapag" | Filter to HAPAG data only |
 | "one", "one line" | Filter to ONE data only |
 | "all", "list", "show" | Return full route table |
-| No match | Send data summary + let LLM interpret |
+| No match | Send data summary + destination list → LLM interprets |
+
+##### Fuzzy Destination Matching (`_match_destination()`)
+
+Users rarely type exact destination names like `"ARQUES-LA-BATAILLE, FRANCE"`. They may type `"arques la bataille"`, `"arqueslabataille"`, or even `"dormund"` (typo for Dortmund). The `_match_destination()` method handles this with a two-step strategy:
+
+**Step 1 — Exact substring scan (catches partial/reformatted names):**
+
+1. Build a lookup of `{city_name: full_canonical_destination}` from the database:
+   - `"arques-la-bataille"` → `"ARQUES-LA-BATAILLE, FRANCE"`
+   - `"dortmund"` → `"DORTMUND, NW, GERMANY"`
+2. Also store "squashed" variants with spaces and hyphens removed:
+   - `"arqueslabataille"` → `"ARQUES-LA-BATAILLE, FRANCE"`
+3. Scan the user message for these substrings, **longest first** (to avoid false positives where a short city name appears inside a longer word).
+
+This handles: `"le havre"` (if it's a destination), `"arques-la-bataille"`, `"arques la bataille"` (via squashed match), case-insensitive input.
+
+**Step 2 — Fuzzy match with `difflib.get_close_matches()` (catches typos):**
+
+1. Tokenize the message, filtering out a comprehensive stop word list:
+   - Common English words: `the`, `and`, `show`, `routes`, `rates`, `how`, `much`, ...
+   - Country names: `france`, `germany`, `belgium`, `poland`, ... (prevents `"france"` fuzzy-matching `"valence"`)
+   - Freight terms: `freight`, `container`, `truck`, `inland`, `ocean`, ...
+2. Build match candidates from remaining tokens:
+   - Individual tokens: `["dormund"]`
+   - Consecutive pairs with space: `["arques bataille"]`
+   - Consecutive pairs squashed: `["arquesbataille"]`
+3. Run `difflib.get_close_matches(candidate, city_names, cutoff=0.65)` — this uses SequenceMatcher (longest common subsequence ratio) to find the closest city name.
+   - `"dormund"` → matches `"dortmund"` (ratio ~0.86)
+   - `"munster"` → matches `"muenster"` (ratio ~0.86)
+   - Cutoff of 0.65 catches reasonable typos while avoiding false positives.
+
+**Fallback — LLM-assisted matching:**
+
+If neither step finds a match, the system prompt contains the **full list of available destination names**. The LLM can then:
+- Suggest the closest destination to what the user typed
+- Ask the user to clarify
+- Tell the user what destinations are available
+
+This three-layer approach (exact substring → fuzzy match → LLM fallback) handles virtually all user input variations without requiring a separate NLP model.
+
+##### Data Lookup: Contains-Fallback Matching
+
+`get_routes()` and `get_hapag_charges()` in the data loader also use a two-step strategy:
+1. Try exact match first: `df['Destination'].str.upper() == dest_upper`
+2. If no rows matched, fall back to contains: `df['Destination'].str.upper().str.contains(dest_upper)`
+
+This handles the case where fuzzy matching returns `"ARQUES-LA-BATAILLE"` (from HAPAG data) but ONE data stores it as `"ARQUES-LA-BATAILLE, FRANCE"` — the contains fallback catches it.
+
+##### Multilingual Support
+
+The system prompt includes: *"You can respond in the same language the user writes in (e.g., Korean, English)."* This allows users to ask questions in Korean (or other languages) and receive answers in the same language. The destination matching works language-independently since city names are always Latin characters in the database.
 
 #### 1.3 LLM Client (`chatbot/llm_client.py`)
 

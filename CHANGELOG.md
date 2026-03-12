@@ -4,6 +4,12 @@
 > Use the text after the date as your `git commit -m "..."` message.
 > Keep entries to 3 lines max. Use imperative mood (fix, add, remove — not fixed, added).
 
+## v1.1.1 — 2026-03-11 — fix: chatbot fuzzy destination matching and multilingual support
+
+- Add fuzzy destination matching (exact substring + difflib) so users can type partial/misspelled names
+- Fix data loader to use contains-fallback when exact destination match fails across carriers
+- Add Korean language support and full destination list in system prompt for LLM fallback
+
 ## v1.1.0 — 2026-03-11 — feat: add AI chatbot for freight rate Q&A
 
 - Add chatbot backend (data_loader, context_builder, llm_client) with OpenAI/Gemini dual support
