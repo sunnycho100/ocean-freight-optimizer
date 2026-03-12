@@ -15,6 +15,7 @@ A multi-carrier freight route analysis and visualization system that compares in
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Notes](#notes)
+- [Documentation](#documentation)
 
 ---
 
@@ -49,6 +50,17 @@ Both scripts will:
 | **ONE Dashboard** | Top-ranked routes by total cost, map comparison grid, transport mode & remarks |
 | **HAPAG Dashboard** | Landfreight surcharges with sub-option selector, container type filtering |
 | **Summary** | Side-by-side carrier comparison with unified container types and city name normalization |
+| **Chat Assistant** | Natural-language Q&A panel powered by OpenAI / Gemini with fuzzy destination matching |
+
+### AI Chatbot Assistant
+- Natural-language Q&A over freight rate data (e.g., "What's the cheapest route to Valence for a 40HC?")
+- RAG-style context injection — Python does precise data lookups, LLM formats the answer
+- Fuzzy destination matching (handles typos, partial names, hyphenated variants)
+- Supports multi-turn conversation with history
+- Powered by OpenAI / Gemini API (configurable)
+
+### Internationalization
+- English and Korean language support (toggle in the UI)
 
 ### Intelligent Data Processing
 - Automatic transport mode extraction from Remarks column
@@ -81,7 +93,7 @@ python -m venv .venv
 source .venv/bin/activate        # macOS / Linux
 # .venv\Scripts\activate         # Windows
 
-pip install pandas openpyxl playwright playwright-stealth python-dotenv flask flask-cors requests selenium
+pip install pandas openpyxl playwright playwright-stealth python-dotenv flask flask-cors requests selenium openai google-generativeai
 playwright install chromium
 ```
 
@@ -98,6 +110,11 @@ Create a `.env` file in the project root:
 ```
 HAPAG_EMAIL=your_email@example.com
 HAPAG_PASSWORD=your_password_here
+
+# Chatbot (pick one provider)
+LLM_PROVIDER=openai              # or "gemini"
+OPENAI_API_KEY=sk-...            # if using OpenAI
+GEMINI_API_KEY=...               # if using Gemini
 ```
 
 ### 4. Data Files
@@ -150,6 +167,7 @@ Flask REST API that serves processed data to the frontend.
 | `GET /api/hapag/destinations` | List HAPAG destinations |
 | `GET /api/hapag/route/<dest>/<type>` | HAPAG rates with sub-options |
 | `GET /api/health` | Health check |
+| `POST /api/chat` | AI chatbot — natural-language freight Q&A |
 
 - Auto-detects the latest data files in `downloads/`
 - Caches data in memory for fast responses
@@ -158,7 +176,8 @@ Flask REST API that serves processed data to the frontend.
 ### Frontend (`freight-ui/`)
 
 - React 18 + TypeScript
-- Components: `RouteDashboard`, `HapagDashboard`, `SummaryDashboard`
+- Components: `RouteDashboard`, `HapagDashboard`, `SummaryDashboard`, `ChatPanel`
+- English / Korean language toggle (`i18n.tsx`)
 - CSS custom properties for theming
 - Reads API port from `REACT_APP_API_PORT` env var (falls back to `localhost:4000`)
 
@@ -243,6 +262,9 @@ Ocean freight rates from Busan to various PODs. Columns: `POD`, `Currency`, `20 
 ```
 HAPAG_EMAIL=your_email@example.com
 HAPAG_PASSWORD=your_password_here
+LLM_PROVIDER=openai              # or "gemini"
+OPENAI_API_KEY=sk-...            # if using OpenAI
+GEMINI_API_KEY=...               # if using Gemini
 ```
 
 ---
@@ -281,6 +303,11 @@ ocean-freight-optimizer/
 │   ├── excel_manager.py             #   Excel output
 │   └── table_scraper.py             #   Table data extraction
 │
+├── chatbot/                         # AI chatbot package
+│   ├── data_loader.py               #   Load & cache freight DataFrames
+│   ├── context_builder.py           #   Intent detection & context assembly
+│   └── llm_client.py                #   LLM API client (OpenAI / Gemini)
+│
 ├── url_checker_package/             # Destination config extractor package
 │   ├── browser.py
 │   ├── config.py
@@ -310,6 +337,7 @@ ocean-freight-optimizer/
 │       │   ├── RouteDashboard.tsx    # ONE Line dashboard
 │       │   ├── HapagDashboard.tsx    # HAPAG-Lloyd dashboard
 │       │   ├── SummaryDashboard.tsx  # Carrier comparison view
+│       │   ├── ChatPanel.tsx         # AI chatbot panel
 │       │   ├── RouteTable.tsx        # Route data table
 │       │   ├── RouteTableTabs.tsx    # Tabbed table view
 │       │   ├── RouteMap.tsx          # Google Maps embed
@@ -320,6 +348,9 @@ ocean-freight-optimizer/
 │       │   └── hapag-dashboard.css
 │       └── utils/
 │           └── googleMapsHelper.ts
+│
+├── chatbot.md                       # Chatbot architecture & implementation plan
+├── dataflow.md                      # Full data pipeline & file schema reference
 │
 └── docs/                            # Documentation
     └── QUICK_DOWNLOAD_*.md          # Quick download package docs
@@ -341,6 +372,17 @@ ocean-freight-optimizer/
 | **Frontend build errors** | Run `npm install` in `freight-ui/`. Check that `tsconfig.json` has `"incremental": true` |
 | **Maps not loading** | Uses public Google Maps embed (no API key). Check browser console for CORS/iframe errors |
 | **Browser opens twice** | Ensure `BROWSER=none` is set in the start script before `npm start` |
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [chatbot.md](chatbot.md) | Chatbot architecture, RAG approach, fuzzy matching strategy, and implementation plan |
+| [dataflow.md](dataflow.md) | Full data pipeline diagram, file-by-file reference, and column schemas |
+| [INITIAL_SETUP.md](INITIAL_SETUP.md) | Step-by-step setup guide for a fresh machine |
+| [docs/](docs/) | Quick download package architecture & refactoring docs |
 
 ---
 

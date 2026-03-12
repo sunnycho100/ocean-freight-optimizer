@@ -1,6 +1,41 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { API_BASE } from '../config';
 import '../styles/chat-panel.css';
+
+/** Lightweight markdown-ish formatting for bot replies */
+function formatMessage(text: string): React.ReactNode {
+  const lines = text.split('\n');
+  return lines.map((line, i) => {
+    // Headings: ### text → styled label
+    const headingMatch = line.match(/^#{1,4}\s+(.+)$/);
+    if (headingMatch) {
+      return (
+        <span key={i} className="chat-heading">
+          {i > 0 && <br />}
+          {headingMatch[1]}
+        </span>
+      );
+    }
+
+    // Bullet: - text → • text
+    let processed = line.replace(/^- /, '• ');
+
+    // Bold: **text**
+    const parts = processed.split(/(\*\*[^*]+\*\*)/g);
+    const formatted = parts.map((part, j) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={j}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+    return (
+      <span key={i}>
+        {i > 0 && <br />}
+        {formatted}
+      </span>
+    );
+  });
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -10,7 +45,7 @@ interface ChatMessage {
 export default function ChatPanel() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: 'Hi! Ask me about freight rates, routes, or carrier comparisons.' },
+    { role: 'assistant', content: '안녕하세요, PNS 챗봇입니다.\n운임, 경로, 캐리어 비교에 대해 물어봐주세요!' },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -74,7 +109,7 @@ export default function ChatPanel() {
       {/* Floating chat button */}
       {!open && (
         <button className="chat-fab" onClick={() => setOpen(true)} title="Freight Assistant">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </button>
@@ -84,14 +119,16 @@ export default function ChatPanel() {
       {open && (
         <div className="chat-panel">
           <div className="chat-panel-header">
-            <span className="chat-panel-title">🚢 Freight Assistant</span>
+            <span className="chat-panel-title">PNS 챗봇</span>
             <button className="chat-panel-close" onClick={() => setOpen(false)}>✕</button>
           </div>
 
           <div className="chat-panel-messages">
             {messages.map((msg, i) => (
               <div key={i} className={`chat-msg chat-msg--${msg.role}`}>
-                <div className="chat-msg-bubble">{msg.content}</div>
+                <div className="chat-msg-bubble">
+                  {msg.role === 'assistant' ? formatMessage(msg.content) : msg.content}
+                </div>
               </div>
             ))}
             {loading && (
