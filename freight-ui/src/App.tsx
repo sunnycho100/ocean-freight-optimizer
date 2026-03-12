@@ -3,6 +3,7 @@ import './styles/app.css';
 import RouteDashboard from './components/RouteDashboard';
 import HapagDashboard from './components/HapagDashboard';
 import SummaryDashboard from './components/SummaryDashboard';
+import ChatPanel from './components/ChatPanel';
 import { testGoogleMapsUrl } from './utils/googleMapsHelper';
 import { I18nProvider, useI18n } from './i18n';
 
@@ -52,6 +53,7 @@ function AppContent() {
         {viewMode === 'HAPAG' && <HapagDashboard />}
         {viewMode === 'SUMMARY' && <SummaryDashboard />}
       </div>
+      <ChatPanel />
     </div>
   );
 }

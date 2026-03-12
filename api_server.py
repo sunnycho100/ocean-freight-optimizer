@@ -4,9 +4,12 @@ Flask API server to serve processed Excel data to the React frontend.
 import os
 import glob
 import socket
-from flask import Flask, jsonify
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pandas as pd
+
+load_dotenv()  # Load .env from project root
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -284,6 +287,37 @@ def get_hapag_route(destination):
             'availableContainers': available_containers,
         }
     })
+
+# --- Chatbot ---
+_chatbot = {'context_builder': None, 'llm_client': None}
+
+def _init_chatbot():
+    """Lazy-initialize chatbot components."""
+    if _chatbot['context_builder'] is None:
+        from chatbot.data_loader import FreightDataLoader
+        from chatbot.context_builder import ContextBuilder
+        from chatbot.llm_client import LLMClient
+        loader = FreightDataLoader()
+        _chatbot['context_builder'] = ContextBuilder(loader)
+        _chatbot['llm_client'] = LLMClient()
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """Chat endpoint for the freight assistant."""
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return jsonify({'error': 'Missing message field'}), 400
+
+    user_message = data['message']
+    history = data.get('history', [])
+
+    try:
+        _init_chatbot()
+        messages = _chatbot['context_builder'].build_context(user_message, history)
+        reply = _chatbot['llm_client'].chat(messages)
+        return jsonify({'reply': reply})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
