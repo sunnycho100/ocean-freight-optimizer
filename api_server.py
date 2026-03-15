@@ -4,6 +4,13 @@ Flask API server to serve processed Excel data to the React frontend.
 import os
 import glob
 import socket
+import subprocess
+import threading
+import time
+import uuid
+import sys
+from collections import deque
+from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -15,7 +22,266 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
 # Cache for loaded data to avoid re-reading Excel files on every request
-_data_cache = {'one': None, 'hapag': None, 'one_file': None, 'hapag_file': None}
+_data_cache = {
+    'one': None,
+    'hapag': None,
+    'one_file': None,
+    'hapag_file': None,
+    'hapag_route_cache': {}
+}
+
+_JOB_SCRIPT_MAP = {
+    'url_checker': 'url_checker_refactored.py',
+    'quick_download': 'quick_download_refactored.py',
+    'one_processor': 'ONE_processor.py',
+    'hapag_checker': 'hapag_checker.py',
+    'one_pipeline': 'one_pipeline.py',
+    'hapag_pipeline': 'hapag_pipeline.py',
+}
+
+_job_state = {
+    'lock': threading.Lock(),
+    'process': None,
+    'jobId': None,
+    'jobType': None,
+    'status': 'idle',
+    'startedAt': None,
+    'endedAt': None,
+    'exitCode': None,
+    'command': None,
+    'logs': deque(maxlen=10000),
+    'nextLogIndex': 0,
+}
+
+
+def _now_iso():
+    return datetime.now().isoformat(timespec='seconds')
+
+
+def _append_job_log(message):
+    """Append a log line for the current/last job."""
+    if message is None:
+        return
+
+    message = str(message).rstrip('\n')
+    if not message:
+        return
+
+    with _job_state['lock']:
+        index = _job_state['nextLogIndex']
+        _job_state['logs'].append({
+            'index': index,
+            'timestamp': _now_iso(),
+            'message': message
+        })
+        _job_state['nextLogIndex'] = index + 1
+
+
+def _serialize_job_status():
+    """Build a JSON-safe snapshot of current job status."""
+    with _job_state['lock']:
+        proc = _job_state['process']
+        is_running = bool(proc and proc.poll() is None)
+        return {
+            'jobId': _job_state['jobId'],
+            'jobType': _job_state['jobType'],
+            'status': _job_state['status'],
+            'isRunning': is_running,
+            'startedAt': _job_state['startedAt'],
+            'endedAt': _job_state['endedAt'],
+            'exitCode': _job_state['exitCode'],
+            'command': _job_state['command'],
+            'nextLogIndex': _job_state['nextLogIndex'],
+        }
+
+
+def _get_job_logs(from_index=0, limit=500):
+    """Return logs from a given index."""
+    with _job_state['lock']:
+        logs = [entry for entry in _job_state['logs'] if entry['index'] >= from_index]
+        if limit > 0:
+            logs = logs[:limit]
+        next_index = _job_state['nextLogIndex']
+    return logs, next_index
+
+
+def _stream_job_output(process, job_id):
+    """Background reader for subprocess stdout."""
+    try:
+        if process.stdout is None:
+            return
+        for line in process.stdout:
+            _append_job_log(line)
+    except Exception as e:
+        _append_job_log(f"[runner] log stream error: {e}")
+    finally:
+        try:
+            if process.stdout:
+                process.stdout.close()
+        except Exception:
+            pass
+
+
+def _watch_job_process(process, job_id):
+    """Background watcher that marks job completion/failure."""
+    exit_code = process.wait()
+    with _job_state['lock']:
+        if _job_state['jobId'] != job_id:
+            return
+        _job_state['exitCode'] = exit_code
+        _job_state['endedAt'] = _now_iso()
+        _job_state['status'] = 'completed' if exit_code == 0 else 'failed'
+        _job_state['process'] = None
+
+    _append_job_log(f"[runner] job finished with exit code {exit_code}")
+
+
+def _is_frozen_executable():
+    """Return True when running from a frozen executable (PyInstaller)."""
+    return bool(getattr(sys, 'frozen', False))
+
+
+def _resolve_job_command(job_type, args):
+    """
+    Resolve subprocess command for a job.
+
+    In source mode:
+      python <job_script.py> [args]
+
+    In frozen mode:
+      <api_server.exe> --run-job <job_type> [args]
+    """
+    if job_type not in _JOB_SCRIPT_MAP:
+        raise ValueError(f"Unsupported jobType: {job_type}")
+
+    if _is_frozen_executable():
+        return [sys.executable, '--run-job', job_type] + args
+
+    script_path = os.path.join(os.getcwd(), _JOB_SCRIPT_MAP[job_type])
+    if not os.path.exists(script_path):
+        raise FileNotFoundError(f"Script not found: {script_path}")
+    return [sys.executable, script_path] + args
+
+
+def _run_job_entrypoint(job_type, args):
+    """
+    Run a job directly in this process.
+
+    Used by frozen mode child processes:
+      api_server.exe --run-job <job_type> [args]
+    """
+    original_argv = list(sys.argv)
+    sys.argv = [original_argv[0]] + list(args)
+
+    try:
+        if job_type == 'url_checker':
+            import url_checker_refactored
+            destinations_override = args if args else None
+            return 0 if url_checker_refactored.main(destinations_override=destinations_override) else 1
+
+        if job_type == 'quick_download':
+            import quick_download_refactored
+            result = quick_download_refactored.quick_download()
+            return 0 if result and result.get('success') else 1
+
+        if job_type == 'one_processor':
+            import ONE_processor
+
+            inland_file = ONE_processor.get_latest_inland_rate_file('downloads')
+            ocean_file = os.path.join('source', 'ocean_freight.xlsx')
+            ONE_processor.process_inland_rates(
+                inland_file=inland_file,
+                ocean_file=ocean_file,
+                output_dir='downloads',
+            )
+            return 0
+
+        if job_type == 'hapag_checker':
+            import hapag_checker
+            return int(hapag_checker.main())
+
+        if job_type == 'one_pipeline':
+            import one_pipeline
+            destinations_override = args if args else None
+            return int(one_pipeline.main(destinations_override=destinations_override))
+
+        if job_type == 'hapag_pipeline':
+            import hapag_pipeline
+            return int(hapag_pipeline.main())
+
+        print(f"[runner] Unsupported jobType: {job_type}")
+        return 1
+    except Exception as exc:
+        print(f"[runner] Fatal job error ({job_type}): {exc}")
+        import traceback
+        traceback.print_exc()
+        return 1
+    finally:
+        sys.argv = original_argv
+
+
+def _start_job(job_type, args=None):
+    """Start a background script job."""
+    args = args or []
+
+    if job_type not in _JOB_SCRIPT_MAP:
+        raise ValueError(f"Unsupported jobType: {job_type}")
+
+    with _job_state['lock']:
+        running = _job_state['process']
+        if running is not None and running.poll() is None:
+            raise RuntimeError("Another job is already running")
+
+        command = _resolve_job_command(job_type, args)
+        env = os.environ.copy()
+        env['PYTHONUNBUFFERED'] = '1'
+        # Force UTF-8 stdio so Unicode log characters from automation scripts
+        # do not crash on Windows cp1252 consoles.
+        env['PYTHONIOENCODING'] = 'utf-8'
+        env['PYTHONUTF8'] = '1'
+
+        process = subprocess.Popen(
+            command,
+            cwd=os.getcwd(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            bufsize=1,
+            env=env,
+        )
+
+        job_id = uuid.uuid4().hex[:12]
+        _job_state['process'] = process
+        _job_state['jobId'] = job_id
+        _job_state['jobType'] = job_type
+        _job_state['status'] = 'running'
+        _job_state['startedAt'] = _now_iso()
+        _job_state['endedAt'] = None
+        _job_state['exitCode'] = None
+        _job_state['command'] = command
+        _job_state['logs'].clear()
+        _job_state['nextLogIndex'] = 0
+
+    _append_job_log(f"[runner] started job '{job_type}'")
+    _append_job_log(f"[runner] command: {' '.join(command)}")
+
+    threading.Thread(target=_stream_job_output, args=(process, job_id), daemon=True).start()
+    threading.Thread(target=_watch_job_process, args=(process, job_id), daemon=True).start()
+    return job_id
+
+
+def _stop_job():
+    """Stop currently running job if any."""
+    with _job_state['lock']:
+        proc = _job_state['process']
+        if proc is None or proc.poll() is not None:
+            return False
+
+    proc.terminate()
+    _append_job_log("[runner] stop requested")
+    return True
 
 def get_latest_processed_file():
     """Get the most recently processed Excel file."""
@@ -73,6 +339,7 @@ def load_hapag_data():
     df = pd.read_excel(file_path, header=None, skiprows=4)
     # Set column names manually
     df.columns = ['From', 'To', 'Via', 'Description', 'Curr.', '20STD', '40STD', '40HC', 'Transport Remarks']
+    _data_cache['hapag_route_cache'] = {}
     _data_cache['hapag'] = df
     _data_cache['hapag_file'] = file_path
     return df
@@ -159,14 +426,11 @@ def get_hapag_route(destination):
     df = load_hapag_data()
     if df is None:
         return jsonify({'error': 'No HAPAG data file found'}), 404
-    
-    print(f"HAPAG file: {get_latest_hapag_file()}")
-    
-    # Preload data into cache for faster first request
-    print("Preloading data into cache...")
-    load_data()
-    load_hapag_data()
-    print("Data preloaded successfully!")
+
+    cache_key = (str(_data_cache.get('hapag_file')), destination)
+    cached = _data_cache['hapag_route_cache'].get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
     
     # Filter by destination
     filtered = df[df['To'] == destination].copy()
@@ -275,7 +539,7 @@ def get_hapag_route(destination):
         
         i += 1
     
-    return jsonify({
+    response = {
         'destination': destination,
         'route': {
             'from': route_from,
@@ -286,7 +550,64 @@ def get_hapag_route(destination):
             'otherCharges': other_charges,
             'availableContainers': available_containers,
         }
-    })
+    }
+    _data_cache['hapag_route_cache'][cache_key] = response
+    return jsonify(response)
+
+
+# --- Automation Job Runner ---
+@app.route('/api/jobs/status', methods=['GET'])
+def job_status():
+    """Get the current background job status."""
+    return jsonify(_serialize_job_status())
+
+
+@app.route('/api/jobs/logs', methods=['GET'])
+def job_logs():
+    """Get background job logs incrementally."""
+    try:
+        from_index = int(request.args.get('from', 0))
+        limit = int(request.args.get('limit', 500))
+    except ValueError:
+        return jsonify({'error': 'Invalid from/limit value'}), 400
+
+    logs, next_index = _get_job_logs(from_index=from_index, limit=limit)
+    return jsonify({'logs': logs, 'nextLogIndex': next_index})
+
+
+@app.route('/api/jobs/run', methods=['POST'])
+def run_job():
+    """Run one of the supported automation scripts."""
+    data = request.get_json(silent=True) or {}
+    job_type = data.get('jobType')
+    destinations = data.get('destinations', [])
+
+    if not job_type:
+        return jsonify({'error': 'Missing jobType'}), 400
+
+    args = []
+    if job_type in ('url_checker', 'one_pipeline'):
+        if destinations and not isinstance(destinations, list):
+            return jsonify({'error': 'destinations must be a list of strings'}), 400
+        args = [str(dest).strip() for dest in destinations if str(dest).strip()]
+
+    try:
+        job_id = _start_job(job_type, args=args)
+        return jsonify({'jobId': job_id, 'status': _serialize_job_status()}), 202
+    except RuntimeError as e:
+        return jsonify({'error': str(e), 'status': _serialize_job_status()}), 409
+    except (ValueError, FileNotFoundError) as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/jobs/stop', methods=['POST'])
+def stop_job():
+    """Stop currently running automation job."""
+    if _stop_job():
+        return jsonify({'ok': True, 'status': _serialize_job_status()})
+    return jsonify({'ok': False, 'status': _serialize_job_status(), 'message': 'No running job'}), 409
 
 # --- Chatbot ---
 _chatbot = {'context_builder': None, 'llm_client': None}
@@ -343,13 +664,38 @@ def find_available_port(start_port=4000, max_attempts=100):
             continue
     raise RuntimeError(f"Could not find an available port in range {start_port}-{start_port + max_attempts}")
 
+
+def resolve_server_port():
+    """Resolve server port from env or dynamic fallback."""
+    forced = os.environ.get('FREIGHT_API_PORT') or os.environ.get('API_PORT')
+    if forced:
+        try:
+            return int(forced)
+        except ValueError as e:
+            raise RuntimeError(f"Invalid port value: {forced}") from e
+    return find_available_port(4000)
+
+
+def resolve_debug_mode():
+    """Resolve Flask debug mode from env."""
+    raw = os.environ.get('API_DEBUG', '1').strip().lower()
+    return raw in ('1', 'true', 'yes', 'on')
+
+
 if __name__ == '__main__':
-    port = find_available_port(4000)
+    # Frozen child-process mode for automation jobs:
+    #   api_server.exe --run-job <job_type> [args...]
+    if len(sys.argv) >= 3 and sys.argv[1] == '--run-job':
+        sys.exit(_run_job_entrypoint(sys.argv[2], sys.argv[3:]))
+
+    port = resolve_server_port()
+    debug_mode = resolve_debug_mode()
     print(f"Starting API server on http://localhost:{port}")
     print(f"Data file: {get_latest_processed_file()}")
+    print(f"Debug mode: {debug_mode}")
     # Write port to file so start.sh can read it
     # Only write on the main process, not the debug reloader child
     if not os.environ.get('WERKZEUG_RUN_MAIN'):
         with open('.api_port', 'w') as f:
             f.write(str(port))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

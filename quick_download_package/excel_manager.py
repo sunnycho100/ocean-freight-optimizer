@@ -5,7 +5,8 @@ Handles saving data to Excel files with versioning and appending logic.
 
 import os
 from datetime import datetime
-import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 
 class ExcelManager:
@@ -54,16 +55,15 @@ class ExcelManager:
             return False
         
         try:
-            filepath = os.path.join(self.output_dir, filename)
-            
-            # Check if this is first save or append
             if not self.first_save_done:
-                filepath = self._handle_first_save(filepath, filename)
+                filepath = self._prepare_first_save_path(filename)
+                success = self._write_excel(df, filepath)
+                if success:
+                    self.current_run_filepath = filepath
+                    self.first_save_done = True
+                return success
             else:
-                filepath = self._handle_append_save(df)
-            
-            # Save to Excel
-            return self._write_excel(df, filepath)
+                return self._append_to_excel(df, self.current_run_filepath)
             
         except Exception as e:
             print(f"   [ERROR] Failed to save Excel: {e}")
@@ -71,63 +71,30 @@ class ExcelManager:
             traceback.print_exc()
             return False
     
-    def _handle_first_save(self, filepath, filename):
+    def _prepare_first_save_path(self, filename):
         """
-        Handle first save - check if we need to create versioned file.
+        Determine the filepath for the first save in this run.
+        If today's base filename already exists, create a versioned filename.
         
         Args:
-            filepath: Full path to the file
             filename: Base filename
             
         Returns:
             str: Path to use for saving
         """
+        filepath = os.path.join(self.output_dir, filename)
         if os.path.exists(filepath):
             print(f"   [Info] File from previous run exists - creating new version...")
-            filepath = self._create_versioned_filename(filepath, filename)
+            return self._create_versioned_filename(filename)
         else:
             print(f"   [Info] Creating new file for this run...")
-        
-        self.current_run_filepath = filepath
-        self.first_save_done = True
-        
-        return filepath
+            return filepath
     
-    def _handle_append_save(self, new_df):
-        """
-        Handle appending to existing file from current run.
-        
-        Args:
-            new_df: New DataFrame to append
-            
-        Returns:
-            str: Path to the current run's file
-        """
-        print(f"   [Info] Appending to current run's file: {os.path.basename(self.current_run_filepath)}")
-        
-        # Read existing data
-        existing_df = pd.read_excel(self.current_run_filepath, sheet_name="Inland Rates")
-        
-        # Ensure Rate column in existing data is also numeric
-        if 'Rate' in existing_df.columns:
-            existing_df['Rate'] = pd.to_numeric(existing_df['Rate'], errors='coerce')
-        
-        # Combine DataFrames
-        combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-        print(f"   [Info] Existing rows: {len(existing_df)}, "
-              f"New rows: {len(new_df)}, Total: {len(combined_df)}")
-        
-        # Update the DataFrame to save
-        # We need to return the filepath and use combined_df
-        # Modify the calling code to handle this
-        return self.current_run_filepath
-    
-    def _create_versioned_filename(self, filepath, filename):
+    def _create_versioned_filename(self, filename):
         """
         Create a versioned filename (_2, _3, etc.).
         
         Args:
-            filepath: Original file path
             filename: Original filename
             
         Returns:
@@ -146,7 +113,7 @@ class ExcelManager:
     
     def _write_excel(self, df, filepath):
         """
-        Write DataFrame to Excel file.
+        Write DataFrame to a new Excel file.
         
         Args:
             df: DataFrame to write
@@ -156,15 +123,8 @@ class ExcelManager:
             bool: True if successful, False otherwise
         """
         try:
-            # If appending, read and combine first
-            if self.first_save_done and filepath == self.current_run_filepath and os.path.exists(filepath):
-                existing_df = pd.read_excel(filepath, sheet_name="Inland Rates")
-                if 'Rate' in existing_df.columns:
-                    existing_df['Rate'] = pd.to_numeric(existing_df['Rate'], errors='coerce')
-                df = pd.concat([existing_df, df], ignore_index=True)
-            
             df.to_excel(filepath, index=False, sheet_name="Inland Rates")
-            print(f"   [SUCCESS] Saved {len(df)} total rows to: {filepath}")
+            print(f"   [SUCCESS] Saved {len(df)} rows to: {filepath}")
             print(f"   [Info] Columns: {list(df.columns)}")
             return True
         except PermissionError:
@@ -172,6 +132,43 @@ class ExcelManager:
             return False
         except Exception as e:
             print(f"   [ERROR] Error writing Excel file: {e}")
+            return False
+
+    def _append_to_excel(self, df, filepath):
+        """
+        Append new rows to an existing Excel file without re-reading all data.
+
+        Args:
+            df: DataFrame to append
+            filepath: Existing Excel file path
+
+        Returns:
+            bool: True if append succeeded, False otherwise
+        """
+        try:
+            print(f"   [Info] Appending to current run's file: {os.path.basename(filepath)}")
+
+            wb = load_workbook(filepath)
+            ws = wb["Inland Rates"] if "Inland Rates" in wb.sheetnames else wb.active
+
+            before_rows = max(ws.max_row - 1, 0)  # subtract header
+            for row in dataframe_to_rows(df, index=False, header=False):
+                ws.append(row)
+            after_rows = max(ws.max_row - 1, 0)
+
+            wb.save(filepath)
+
+            print(
+                f"   [SUCCESS] Appended {len(df)} rows "
+                f"(previous: {before_rows}, total: {after_rows}) to: {filepath}"
+            )
+            return True
+
+        except PermissionError:
+            print(f"   [ERROR] File is open in another program. Please close it and try again.")
+            return False
+        except Exception as e:
+            print(f"   [ERROR] Error appending Excel file: {e}")
             return False
     
     def _log_no_data_error(self, destination):

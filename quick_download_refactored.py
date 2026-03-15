@@ -9,10 +9,17 @@ organization and easier debugging.
 import os
 import sys
 import time
+import warnings
 
 # --- CONFIG: IGNORE SSL ERRORS ---
 os.environ["WDM_SSL_VERIFY"] = "0"
-os.environ["WDM_LOCAL"] = "1"
+os.environ.pop("WDM_LOCAL", None)
+
+try:
+    from urllib3.exceptions import InsecureRequestWarning
+    warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+except Exception:
+    pass
 
 from quick_download_package import (
     ConfigLoader,
@@ -28,6 +35,7 @@ from quick_download_package import (
 USE_IMPORT = True  # Set to False for Export, True for Import
 DOWNLOAD_DIR = os.path.join(os.getcwd(), "downloads")
 ERROR_FOLDER = os.path.join(os.getcwd(), "scraping_errors")
+INTER_DESTINATION_DELAY_SECONDS = 0.2
 
 
 def quick_download():
@@ -47,7 +55,13 @@ def quick_download():
     if not destinations:
         print("\n>>> No destinations found in destination_configs.json. Exiting.")
         print(">>> Please run url_checker_refactored.py first to generate destination configs.")
-        return
+        return {
+            'success': False,
+            'successful': 0,
+            'total': 0,
+            'output_file': None,
+            'failed': [],
+        }
     
     print(f">>> Loaded {len(destinations)} destinations from destination_configs.json:")
     for i, dest in enumerate(destinations, 1):
@@ -79,27 +93,45 @@ def quick_download():
             try:
                 # Process destination
                 result = destination_processor.process_destination(destination, use_import=USE_IMPORT)
-                results.append(result)
-                
-                if result['success']:
-                    # Clean and validate data
-                    cleaned_df = data_processor.clean_and_validate(
-                        result['data'],
-                        result['destination']
-                    )
-                    
-                    if cleaned_df is not None:
-                        # Save to Excel
-                        success = excel_manager.save_to_excel(
-                            cleaned_df,
-                            filename,
-                            result['destination']
-                        )
-                        
-                        if not success:
-                            print(f">>> [WARNING] Failed to save data for {destination}")
-                    else:
-                        print(f">>> [WARNING] No data to save for {destination}")
+                if not result['success']:
+                    results.append(result)
+                    continue
+
+                # Clean and validate data
+                cleaned_df = data_processor.clean_and_validate(
+                    result['data'],
+                    result['destination']
+                )
+
+                if cleaned_df is None:
+                    print(f">>> [WARNING] No data to save for {destination}")
+                    results.append({
+                        'success': False,
+                        'destination': destination,
+                        'error': 'No data to save'
+                    })
+                    continue
+
+                # Save to Excel
+                success = excel_manager.save_to_excel(
+                    cleaned_df,
+                    filename,
+                    result['destination']
+                )
+
+                if not success:
+                    print(f">>> [WARNING] Failed to save data for {destination}")
+                    results.append({
+                        'success': False,
+                        'destination': destination,
+                        'error': 'Failed to save Excel data'
+                    })
+                    continue
+
+                results.append({
+                    'success': True,
+                    'destination': destination,
+                })
                 
             except Exception as e:
                 print(f">>> [ERROR] Exception processing {destination}: {e}")
@@ -127,8 +159,9 @@ def quick_download():
                     'error': f'Exception: {e}'
                 })
             
-            # Small delay between destinations
-            time.sleep(1)
+            # Small throttle between destinations (kept short to reduce total runtime)
+            if INTER_DESTINATION_DELAY_SECONDS > 0:
+                time.sleep(INTER_DESTINATION_DELAY_SECONDS)
         
         # Summary
         print("\n" + "=" * 60)
@@ -146,6 +179,14 @@ def quick_download():
             print("\nFailed destinations:")
             for r in failed:
                 print(f"  - {r['destination']}: {r.get('error', 'Unknown error')}")
+
+        return {
+            'success': successful > 0,
+            'successful': successful,
+            'total': len(destinations),
+            'output_file': os.path.join(DOWNLOAD_DIR, filename),
+            'failed': failed,
+        }
     
     except Exception as e:
         print(f"\n!!! CRITICAL ERROR: {e}")
@@ -157,6 +198,13 @@ def quick_download():
             print("Screenshot saved: scraping_error.png")
         except:
             pass
+        return {
+            'success': False,
+            'successful': 0,
+            'total': len(destinations) if 'destinations' in locals() else 0,
+            'output_file': None,
+            'failed': [],
+        }
     
     finally:
         browser_manager.close_browser()

@@ -154,7 +154,54 @@ class DestinationProcessor:
                 "//table | //div[@role='table']"
             ))
         )
-        
-        # Wait longer for ALL rows to load
-        time.sleep(3)
-        print("   [Info] Results loaded")
+
+        row_count = self._wait_for_stable_row_count()
+        print(f"   [Info] Results loaded (rows detected: {row_count})")
+
+    def _wait_for_stable_row_count(self, timeout=12, poll_interval=0.4, stable_checks=3):
+        """
+        Wait until table row count stabilizes to avoid fixed delays.
+
+        Returns:
+            int: Last detected row count
+        """
+        deadline = time.time() + timeout
+        last_count = -1
+        stable_hits = 0
+
+        while time.time() < deadline:
+            count = self._get_row_count()
+
+            if count == last_count:
+                stable_hits += 1
+            else:
+                stable_hits = 0
+                last_count = count
+
+            if stable_hits >= stable_checks:
+                return count
+
+            time.sleep(poll_interval)
+
+        return max(last_count, 0)
+
+    def _get_row_count(self):
+        """Get current number of data rows in the visible result table."""
+        try:
+            count = self.driver.execute_script(
+                """
+                const table = document.querySelector('table');
+                if (table) {
+                    const tbodyRows = table.querySelectorAll('tbody tr');
+                    if (tbodyRows.length > 0) return tbodyRows.length;
+                    const allRows = table.querySelectorAll('tr');
+                    return Math.max(allRows.length - 1, 0);
+                }
+
+                const roleTableRows = document.querySelectorAll('[role="table"] [role="row"]');
+                return Math.max(roleTableRows.length - 1, 0);
+                """
+            )
+            return int(count or 0)
+        except Exception:
+            return 0

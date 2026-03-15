@@ -114,7 +114,9 @@ class DataProcessor:
         # Set values only for the first row of this destination
         if len(df) > 0:
             df.at[0, 'City Name'] = destination
-            df.at[0, 'Total Count'] = total_count
+            # Keep metadata column string-compatible to avoid pandas StringDtype
+            # assignment errors on newer pandas versions.
+            df.at[0, 'Total Count'] = str(total_count)
             df.at[0, 'Validation'] = validation_result
         
         print(f"   [Info] Added metadata: {destination} - Total: {total_count} results")

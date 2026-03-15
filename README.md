@@ -31,10 +31,20 @@ A multi-carrier freight route analysis and visualization system that compares in
 start.bat
 ```
 
-Both scripts will:
-1. Start the Flask API server (dynamic port starting from 4000 on macOS/Linux, port 5000 on Windows)
+Both scripts (`start.sh` / `start.bat`) will:
+1. Start the Flask API server (dynamic port starting from 4000)
 2. Start the React frontend (port 3000)
 3. Open your browser to the multi-carrier dashboard
+
+### Windows Desktop App (Electron)
+```bash
+start_desktop.bat
+```
+
+Or from `freight-ui/`:
+```bash
+npm run desktop:dev
+```
 
 ---
 
@@ -168,10 +178,14 @@ Flask REST API that serves processed data to the frontend.
 | `GET /api/hapag/route/<dest>/<type>` | HAPAG rates with sub-options |
 | `GET /api/health` | Health check |
 | `POST /api/chat` | AI chatbot — natural-language freight Q&A |
+| `GET /api/jobs/status` | Selenium automation runner status |
+| `GET /api/jobs/logs` | Incremental automation logs |
+| `POST /api/jobs/run` | Start a runner job (`url_checker`, `quick_download`, `one_processor`, `hapag_checker`) |
+| `POST /api/jobs/stop` | Stop the current runner job |
 
 - Auto-detects the latest data files in `downloads/`
 - Caches data in memory for fast responses
-- Port: dynamic from 4000 (macOS/Linux) or 5000 (Windows), written to `.api_port`
+- Port: dynamic from 4000 (all platforms), written to `.api_port`
 
 ### Frontend (`freight-ui/`)
 
@@ -179,7 +193,8 @@ Flask REST API that serves processed data to the frontend.
 - Components: `RouteDashboard`, `HapagDashboard`, `SummaryDashboard`, `ChatPanel`
 - English / Korean language toggle (`i18n.tsx`)
 - CSS custom properties for theming
-- Reads API port from `REACT_APP_API_PORT` env var (falls back to `localhost:4000`)
+- Browser mode: uses `/api` via CRA proxy
+- Desktop mode: reads `apiPort` query param and calls `http://127.0.0.1:<apiPort>/api`
 
 ---
 
@@ -199,6 +214,17 @@ python ONE_processor.py
 # 3. Extract HAPAG-Lloyd surcharges (requires .env credentials)
 python hapag_checker.py
 #    → downloads/hapag_surcharges_YYYYMMDD.xlsx
+```
+
+### Desktop App (Windows)
+
+```bash
+# Start desktop mode for development
+start_desktop.bat
+
+# Build Windows installer (.exe)
+cd freight-ui
+npm run desktop:build
 ```
 
 ### Adding New Destinations
@@ -371,6 +397,8 @@ ocean-freight-optimizer/
 | **Duplicate ranks (1,2,2,3)** | Reprocess data with `python ONE_processor.py` — uses dense ranking method |
 | **Frontend build errors** | Run `npm install` in `freight-ui/`. Check that `tsconfig.json` has `"incremental": true` |
 | **Maps not loading** | Uses public Google Maps embed (no API key). Check browser console for CORS/iframe errors |
+| **Desktop app cannot start backend** | Ensure Python is installed and available as `py -3` or `.venv\\Scripts\\python.exe` in project root |
+| **Desktop build fails on Windows code-sign tools** | Use `npm run desktop:build` (already configured with `CSC_IDENTITY_AUTO_DISCOVERY=false`) |
 | **Browser opens twice** | Ensure `BROWSER=none` is set in the start script before `npm start` |
 
 ---

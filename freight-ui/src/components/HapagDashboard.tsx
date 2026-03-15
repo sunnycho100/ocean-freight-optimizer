@@ -15,10 +15,10 @@ const HapagDashboard: React.FC = () => {
   const [laneData, setLaneData] = useState<HapagLaneData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // For Destination Landfreight sub-options
   const [selectedLandfreightOption, setSelectedLandfreightOption] = useState<number>(0);
-  
+
   // For More Details expandable section
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
@@ -28,7 +28,7 @@ const HapagDashboard: React.FC = () => {
       try {
         setLoading(true);
         const res = await fetch(`${API_BASE}/hapag/destinations`);
-        
+
         if (!res.ok) {
           throw new Error('Failed to fetch destinations');
         }
@@ -48,7 +48,7 @@ const HapagDashboard: React.FC = () => {
     };
 
     fetchDestinations();
-  }, []);
+  }, [t]);
 
   // Fetch route data when destination changes
   useEffect(() => {
@@ -67,7 +67,7 @@ const HapagDashboard: React.FC = () => {
 
         const data = await res.json();
         setLaneData(data);
-        
+
         // Reset to first available container type
         const available = data.route.availableContainers;
         if (!available[selectedContainer]) {
@@ -75,7 +75,7 @@ const HapagDashboard: React.FC = () => {
           else if (available['40STD']) setSelectedContainer('40STD');
           else if (available['40HC']) setSelectedContainer('40HC');
         }
-        
+
         // Reset landfreight option selection to 0
         setSelectedLandfreightOption(0);
       } catch (err) {
@@ -110,7 +110,7 @@ const HapagDashboard: React.FC = () => {
   // Filter sub-options to only include those with valid numeric values for selected container
   const getValidSubOptions = (subOptions: HapagSubOption[] | undefined): HapagSubOption[] => {
     if (!subOptions) return [];
-    return subOptions.filter(opt => {
+    return subOptions.filter((opt) => {
       const val = getSubOptionValue(opt, selectedContainer);
       return val !== '-' && val !== '';
     });
@@ -118,11 +118,11 @@ const HapagDashboard: React.FC = () => {
 
   const calculateTotal = (): number => {
     if (!laneData) return 0;
-    
+
     let totalEUR = 0;
     const route = laneData.route;
     const USD_TO_EUR = 0.86;
-    
+
     // Ocean Freight
     const oceanVal = getValue(route.oceanFreight, selectedContainer);
     if (oceanVal !== '-' && route.oceanFreight) {
@@ -134,7 +134,7 @@ const HapagDashboard: React.FC = () => {
         totalEUR += amount;
       }
     }
-    
+
     // Destination Landfreight
     if (route.destinationLandfreight?.subOptions && route.destinationLandfreight.subOptions.length > 0) {
       const validOptions = getValidSubOptions(route.destinationLandfreight.subOptions);
@@ -164,7 +164,7 @@ const HapagDashboard: React.FC = () => {
         }
       }
     }
-    
+
     return totalEUR;
   };
 
@@ -201,7 +201,7 @@ const HapagDashboard: React.FC = () => {
       <header className="header">
         <h1 className="header-title">{t('hapagRouteAnalyzer')}</h1>
         <p className="header-subtitle">
-          {route.from} → {route.via} → {route.to}
+          {route.from} {'->'} {route.via} {'->'} {route.to}
         </p>
       </header>
 
@@ -268,7 +268,7 @@ const HapagDashboard: React.FC = () => {
                 {/* Ocean Freight */}
                 {route.oceanFreight && (
                   <tr>
-                    <td>Ocean Freight</td>
+                    <td>{t('oceanFreight')}</td>
                     <td>
                       {route.oceanFreight.description}
                       {route.oceanFreight.curr === 'USD' && (
@@ -282,30 +282,30 @@ const HapagDashboard: React.FC = () => {
                     </td>
                   </tr>
                 )}
-                
+
                 {/* Destination Landfreight */}
                 {route.destinationLandfreight && (
                   <>
                     {(() => {
                       const validOptions = getValidSubOptions(route.destinationLandfreight.subOptions);
-                      
+
                       if (validOptions.length > 0) {
                         // Ensure selectedLandfreightOption is within bounds
                         const safeIndex = selectedLandfreightOption >= validOptions.length ? 0 : selectedLandfreightOption;
-                        
+
                         return (
                           <tr>
-                            <td>Destination Landfreight</td>
+                            <td>{t('destinationLandfreight')}</td>
                             <td>
                               <select
                                 value={safeIndex}
-                                onChange={(e) => setSelectedLandfreightOption(parseInt(e.target.value))}
-                                style={{ 
-                                  padding: '6px 10px', 
-                                  borderRadius: '4px', 
+                                onChange={(e) => setSelectedLandfreightOption(parseInt(e.target.value, 10))}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: '4px',
                                   border: '1px solid #D8DEE3',
                                   fontSize: '14px',
-                                  background: 'white'
+                                  background: 'white',
                                 }}
                               >
                                 {validOptions.map((opt, idx) => (
@@ -318,22 +318,23 @@ const HapagDashboard: React.FC = () => {
                             </td>
                           </tr>
                         );
-                      } else {
-                        // No sub-options or all filtered out, check main item
-                        const mainVal = getValue(route.destinationLandfreight, selectedContainer);
-                        if (mainVal !== '-') {
-                          return (
-                            <tr>
-                              <td>Destination Landfreight</td>
-                              <td>{route.destinationLandfreight.description}</td>
-                              <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                                {route.destinationLandfreight.curr} {mainVal}
-                              </td>
-                            </tr>
-                          );
-                        }
-                        return null;
                       }
+
+                      // No sub-options or all filtered out, check main item
+                      const mainVal = getValue(route.destinationLandfreight, selectedContainer);
+                      if (mainVal !== '-') {
+                        return (
+                          <tr>
+                            <td>{t('destinationLandfreight')}</td>
+                            <td>{route.destinationLandfreight.description}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                              {route.destinationLandfreight.curr} {mainVal}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return null;
                     })()}
                   </>
                 )}
@@ -341,7 +342,7 @@ const HapagDashboard: React.FC = () => {
                 {/* Total Rate */}
                 <tr style={{ borderTop: '2px solid var(--color-primary)', backgroundColor: 'var(--color-primary-lighter)' }}>
                   <td><strong>{t('totalRate')}</strong></td>
-                  <td></td>
+                  <td />
                   <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '18px', color: 'var(--color-primary)' }}>
                     EUR {calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
@@ -354,13 +355,13 @@ const HapagDashboard: React.FC = () => {
 
       {/* More Details (Collapsible) */}
       <div className="card">
-        <div 
+        <div
           className="card-header hapag-details-header"
           onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
           style={{ cursor: 'pointer' }}
         >
           <h2 className="card-title">
-            {t('moreDetails')} {isDetailsExpanded ? '▼' : '▶'}
+            {t('moreDetails')} {isDetailsExpanded ? '\u25BC' : '\u25B6'}
           </h2>
         </div>
         {isDetailsExpanded && (
@@ -382,11 +383,11 @@ const HapagDashboard: React.FC = () => {
                         <>
                           <tr>
                             <td colSpan={3} style={{ paddingTop: '20px', paddingBottom: '10px' }}>
-                              <strong>Destination Landfreight</strong>
+                              <strong>{t('destinationLandfreight')}</strong>
                               <div style={{ marginTop: '10px' }}>
                                 <select
                                   value={selectedLandfreightOption}
-                                  onChange={(e) => setSelectedLandfreightOption(parseInt(e.target.value))}
+                                  onChange={(e) => setSelectedLandfreightOption(parseInt(e.target.value, 10))}
                                   style={{ padding: '8px', borderRadius: '4px', border: '1px solid #D8DEE3' }}
                                 >
                                   {route.destinationLandfreight.subOptions.map((opt, idx) => (
@@ -397,7 +398,7 @@ const HapagDashboard: React.FC = () => {
                             </td>
                           </tr>
                           <tr>
-                            <td>Destination Landfreight</td>
+                            <td>{t('destinationLandfreight')}</td>
                             <td>{route.destinationLandfreight.subOptions[selectedLandfreightOption].description}</td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>
                               {route.destinationLandfreight.curr} {getSubOptionValue(route.destinationLandfreight.subOptions[selectedLandfreightOption], selectedContainer)}
@@ -406,7 +407,7 @@ const HapagDashboard: React.FC = () => {
                         </>
                       ) : (
                         <tr>
-                          <td>Destination Landfreight</td>
+                          <td>{t('destinationLandfreight')}</td>
                           <td>{route.destinationLandfreight.description}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>
                             {route.destinationLandfreight.curr} {getValue(route.destinationLandfreight, selectedContainer)}
@@ -418,10 +419,10 @@ const HapagDashboard: React.FC = () => {
 
                   {/* Other Charges (excluding Terminal Handling Charge Dest which is already in summary) */}
                   {route.otherCharges
-                    .filter(c => !c.description.toLowerCase().includes('terminal handling charge dest'))
+                    .filter((c) => !c.description.toLowerCase().includes('terminal handling charge dest'))
                     .map((charge, idx) => (
                       <tr key={idx}>
-                        <td>Other Charges</td>
+                        <td>{t('otherCharges')}</td>
                         <td>{charge.description}</td>
                         <td style={{ textAlign: 'right', fontWeight: 600 }}>
                           {charge.curr} {getValue(charge, selectedContainer)}

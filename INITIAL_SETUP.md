@@ -148,6 +148,25 @@ npm start
 
 The React app will open automatically at: http://localhost:3001
 
+### Desktop App: Electron (Windows)
+
+From project root:
+```powershell
+start_desktop.bat
+```
+
+Or manually:
+```powershell
+cd freight-ui
+npm run desktop:dev
+```
+
+To build installer:
+```powershell
+cd freight-ui
+npm run desktop:build
+```
+
 ---
 
 ## Data Extraction Scripts

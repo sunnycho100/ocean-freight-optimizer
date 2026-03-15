@@ -72,41 +72,21 @@ def clean_columns(df):
 def add_ocean_rates(inland_df, ocean_df):
     """Add ocean rates based on POD and container size matching."""
     print("\nAdding ocean rates...")
-    
-    # Create a dictionary for quick lookup
-    ocean_lookup = {}
-    for _, row in ocean_df.iterrows():
-        pod = row['POD']
-        ocean_lookup[pod] = {
-            '20': row['20 FT'],
-            '40': row['40 FT']
-        }
-    
-    # Function to get ocean rate for each row
-    def get_ocean_rate(row):
-        pod = row['POD']
-        container_type = row['Container Type & Size']
-        
-        # Check if POD exists in ocean freight data
-        if pod not in ocean_lookup:
-            return None
-        
-        # Extract first 2 characters from container type (should be '20' or '40')
-        if pd.isna(container_type):
-            return None
-        
-        container_size = str(container_type)[:2]
-        
-        # Get the appropriate rate
-        if container_size == '20':
-            return ocean_lookup[pod]['20']
-        elif container_size == '40':
-            return ocean_lookup[pod]['40']
-        else:
-            return None
-    
-    # Add Ocean Rate column
-    inland_df['Ocean Rate'] = inland_df.apply(get_ocean_rate, axis=1)
+
+    # Vectorized join to avoid row-wise apply on large files.
+    ocean_rates = (
+        ocean_df[['POD', '20 FT', '40 FT']]
+        .drop_duplicates(subset=['POD'])
+        .set_index('POD')
+    )
+    inland_df = inland_df.join(ocean_rates, on='POD')
+
+    container_size = inland_df['Container Type & Size'].astype(str).str[:2]
+    inland_df['Ocean Rate'] = inland_df['20 FT'].where(
+        container_size == '20',
+        inland_df['40 FT'].where(container_size == '40')
+    )
+    inland_df = inland_df.drop(columns=['20 FT', '40 FT'])
     
     # Check how many rows got matched
     matched = inland_df['Ocean Rate'].notna().sum()

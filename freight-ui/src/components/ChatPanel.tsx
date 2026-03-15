@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE } from '../config';
+import { useI18n } from '../i18n';
 import '../styles/chat-panel.css';
 
-/** Lightweight markdown-ish formatting for bot replies */
+/** Lightweight markdown-like formatting for bot replies */
 function formatMessage(text: string): React.ReactNode {
   const lines = text.split('\n');
   return lines.map((line, i) => {
-    // Headings: ### text → styled label
+    // Headings: ### text -> styled label
     const headingMatch = line.match(/^#{1,4}\s+(.+)$/);
     if (headingMatch) {
       return (
@@ -17,8 +18,8 @@ function formatMessage(text: string): React.ReactNode {
       );
     }
 
-    // Bullet: - text → • text
-    let processed = line.replace(/^- /, '• ');
+    // Bullet: - text -> • text
+    const processed = line.replace(/^- /, '\u2022 ');
 
     // Bold: **text**
     const parts = processed.split(/(\*\*[^*]+\*\*)/g);
@@ -43,9 +44,10 @@ interface ChatMessage {
 }
 
 export default function ChatPanel() {
+  const { t, lang } = useI18n();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: '안녕하세요, PNS 챗봇입니다.\n운임, 경로, 캐리어 비교에 대해 물어봐주세요!' },
+    { role: 'assistant', content: t('chatGreeting') },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,6 +61,19 @@ export default function ChatPanel() {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  // Keep greeting aligned with language toggle. Logs/messages from jobs remain untouched.
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 0) {
+        return [{ role: 'assistant', content: t('chatGreeting') }];
+      }
+      if (prev[0]?.role !== 'assistant') return prev;
+      const next = [...prev];
+      next[0] = { ...next[0], content: t('chatGreeting') };
+      return next;
+    });
+  }, [lang, t]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -84,13 +99,13 @@ export default function ChatPanel() {
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: data.error || 'Something went wrong.' },
+          { role: 'assistant', content: data.error || t('chatFallbackError') },
         ]);
       }
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'Failed to reach the server. Please try again.' },
+        { role: 'assistant', content: t('chatServerError') },
       ]);
     } finally {
       setLoading(false);
@@ -108,7 +123,7 @@ export default function ChatPanel() {
     <>
       {/* Floating chat button */}
       {!open && (
-        <button className="chat-fab" onClick={() => setOpen(true)} title="Freight Assistant">
+        <button className="chat-fab" onClick={() => setOpen(true)} title={t('chatFabTitle')}>
           <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
@@ -119,8 +134,8 @@ export default function ChatPanel() {
       {open && (
         <div className="chat-panel">
           <div className="chat-panel-header">
-            <span className="chat-panel-title">PNS 챗봇</span>
-            <button className="chat-panel-close" onClick={() => setOpen(false)}>✕</button>
+            <span className="chat-panel-title">{t('chatTitle')}</span>
+            <button className="chat-panel-close" onClick={() => setOpen(false)}>{'\u2715'}</button>
           </div>
 
           <div className="chat-panel-messages">
@@ -145,7 +160,7 @@ export default function ChatPanel() {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Ask about routes, rates..."
+              placeholder={t('chatInputPlaceholder')}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

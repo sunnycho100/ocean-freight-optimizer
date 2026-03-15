@@ -2,6 +2,8 @@
   "name": "freight-ui",
   "version": "1.0.0",
   "private": true,
+  "homepage": ".",
+  "main": "electron/main.js",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -10,7 +12,12 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "start:no-browser": "cross-env BROWSER=none react-scripts start",
+    "build": "react-scripts build",
+    "backend:build": "node electron/build-backend.js",
+    "desktop:dev": "concurrently -k \"npm run start:no-browser\" \"wait-on tcp:3000 && electron .\"",
+    "desktop:build": "npm run build && npm run backend:build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder -w --publish never",
+    "desktop:start": "electron ."
   },
   "browserslist": {
     "production": [
@@ -26,7 +33,96 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
   },
-  "proxy": "http://localhost:4000"
+  "proxy": "http://localhost:4000",
+  "build": {
+    "extends": null,
+    "appId": "com.pantech.oceanfreightoptimizer",
+    "productName": "Ocean Freight Optimizer",
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend_bin",
+        "to": "backend/bin",
+        "filter": [
+          "*.exe"
+        ]
+      },
+      {
+        "from": "../api_server.py",
+        "to": "backend/api_server.py"
+      },
+      {
+        "from": "../quick_download_refactored.py",
+        "to": "backend/quick_download_refactored.py"
+      },
+      {
+        "from": "../ONE_processor.py",
+        "to": "backend/ONE_processor.py"
+      },
+      {
+        "from": "../url_checker_refactored.py",
+        "to": "backend/url_checker_refactored.py"
+      },
+      {
+        "from": "../hapag_checker.py",
+        "to": "backend/hapag_checker.py"
+      },
+      {
+        "from": "../one_pipeline.py",
+        "to": "backend/one_pipeline.py"
+      },
+      {
+        "from": "../hapag_pipeline.py",
+        "to": "backend/hapag_pipeline.py"
+      },
+      {
+        "from": "../destination_configs.json",
+        "to": "backend/destination_configs.json"
+      },
+      {
+        "from": "../destinations.txt",
+        "to": "backend/destinations.txt"
+      },
+      {
+        "from": "../source",
+        "to": "backend/source"
+      },
+      {
+        "from": "../quick_download_package",
+        "to": "backend/quick_download_package"
+      },
+      {
+        "from": "../url_checker_package",
+        "to": "backend/url_checker_package"
+      },
+      {
+        "from": "../hapag_module",
+        "to": "backend/hapag_module"
+      },
+      {
+        "from": "../chatbot",
+        "to": "backend/chatbot"
+      }
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis"
+      ]
+    }
+  }
 }

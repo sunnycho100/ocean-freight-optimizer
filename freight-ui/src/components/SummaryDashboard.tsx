@@ -314,10 +314,10 @@ const SummaryDashboard: React.FC = () => {
   const hapagTotal = calculateHapagTotal();
   const lowestONETotal = topThreeONE.length > 0 ? calculateONETotal(topThreeONE[0]) : Infinity;
   
-  const winner = lowestONETotal < hapagTotal ? 'ONE' : 'HAPAG-Lloyd';
+  const winner = lowestONETotal < hapagTotal ? 'ONE' : 'HAPAG-LLOYD';
   const winnerRoute = winner === 'ONE' && topThreeONE.length > 0 
-    ? `via ${topThreeONE[0].pod}` 
-    : hapagData ? `via ${hapagData.route.via}` : '';
+    ? `${t('viaLabel')} ${topThreeONE[0].pod}`
+    : hapagData ? `${t('viaLabel')} ${hapagData.route.via}` : '';
 
   if (loading) {
     return (
@@ -361,8 +361,8 @@ const SummaryDashboard: React.FC = () => {
                 {destinationMappings.map((mapping) => (
                   <option key={mapping.displayName} value={mapping.displayName}>
                     {mapping.displayName}
-                    {!mapping.oneDestination && ' (HAPAG only)'}
-                    {!mapping.hapagDestination && ' (ONE only)'}
+                    {!mapping.oneDestination && ` ${t('hapagOnlyTag')}`}
+                    {!mapping.hapagDestination && ` ${t('oneOnlyTag')}`}
                   </option>
                 ))}
               </select>
@@ -453,8 +453,8 @@ const SummaryDashboard: React.FC = () => {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">
-            HAPAG-Lloyd - {selectedMapping?.displayName || 'N/A'} ({hapagContainerType})
-            {hapagData && <span style={{ fontWeight: 400, fontSize: '14px' }}> via {hapagData.route.via}</span>}
+            HAPAG-LLOYD - {selectedMapping?.displayName || t('notAvailable')} ({hapagContainerType})
+            {hapagData && <span style={{ fontWeight: 400, fontSize: '14px' }}> {t('viaLabel')} {hapagData.route.via}</span>}
           </h2>
         </div>
         <div className="card-body">
@@ -473,8 +473,8 @@ const SummaryDashboard: React.FC = () => {
                   {/* Ocean Freight */}
                   {hapagData.route.oceanFreight && (
                     <tr>
-                      <td>{hapagData.route.from} → {hapagData.route.via} → {hapagData.route.to}</td>
-                      <td>Ocean Freight</td>
+                      <td>{hapagData.route.from} {'->'} {hapagData.route.via} {'->'} {hapagData.route.to}</td>
+                      <td>{t('oceanFreight')}</td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>
                         {hapagData.route.oceanFreight.curr}{' '}
                         {hapagContainerType === '20STD' ? hapagData.route.oceanFreight.value20STD :
@@ -501,7 +501,7 @@ const SummaryDashboard: React.FC = () => {
                   {hapagData.route.destinationLandfreight && (
                     <tr>
                       <td></td>
-                      <td>Destination Landfreight</td>
+                      <td>{t('destinationLandfreight')}</td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>
                         {hapagData.route.destinationLandfreight.curr}{' '}
                         {(() => {
@@ -578,3 +578,4 @@ const SummaryDashboard: React.FC = () => {
 };
 
 export default SummaryDashboard;
+

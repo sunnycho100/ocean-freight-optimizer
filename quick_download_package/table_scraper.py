@@ -41,7 +41,7 @@ class TableScraper:
         
         try:
             # Wait for table to be visible
-            table_container = WebDriverWait(self.driver, 15).until(
+            WebDriverWait(self.driver, 15).until(
                 EC.presence_of_element_located((
                     By.XPATH, 
                     "//table | //div[contains(@class, 'table')] | //div[@role='table']"
@@ -52,8 +52,9 @@ class TableScraper:
             # Scroll to ensure all rows are loaded (for lazy loading)
             self._scroll_page()
             
-            # Give table time to fully populate
-            time.sleep(3)
+            # Wait until row count stabilizes instead of fixed delay
+            stable_rows = self._wait_for_table_population()
+            print(f"   [Info] Table rows stabilized at: {stable_rows}")
             
             # Extract table data using JavaScript - TARGET ONLY INLAND TARIFF (DOOR)
             table_data = self._extract_table_data_js()
@@ -79,11 +80,55 @@ class TableScraper:
         try:
             # Scroll down to make sure all rows are loaded
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1)
             self.driver.execute_script("window.scrollTo(0, 0);")
-            time.sleep(1)
         except Exception as e:
             print(f"   [Warning] Scroll error: {e}")
+
+    def _wait_for_table_population(self, timeout=10, poll_interval=0.4, stable_checks=3):
+        """
+        Wait for table rows to stabilize after search/scroll.
+
+        Returns:
+            int: Last stable row count detected
+        """
+        deadline = time.time() + timeout
+        last_count = -1
+        stable_hits = 0
+
+        while time.time() < deadline:
+            count = self._get_row_count()
+
+            if count == last_count:
+                stable_hits += 1
+            else:
+                stable_hits = 0
+                last_count = count
+
+            if stable_hits >= stable_checks:
+                return count
+
+            time.sleep(poll_interval)
+
+        return max(last_count, 0)
+
+    def _get_row_count(self):
+        """Get current row count from the currently visible table."""
+        try:
+            count = self.driver.execute_script(
+                """
+                const table = document.querySelector('table');
+                if (!table) return 0;
+
+                const tbodyRows = table.querySelectorAll('tbody tr');
+                if (tbodyRows.length > 0) return tbodyRows.length;
+
+                const allRows = table.querySelectorAll('tr');
+                return Math.max(allRows.length - 1, 0);
+                """
+            )
+            return int(count or 0)
+        except Exception:
+            return 0
     
     def _extract_table_data_js(self):
         """

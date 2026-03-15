@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import './styles/app.css';
+import './styles/automation-panel.css';
 import RouteDashboard from './components/RouteDashboard';
 import HapagDashboard from './components/HapagDashboard';
 import SummaryDashboard from './components/SummaryDashboard';
 import ChatPanel from './components/ChatPanel';
+import AutomationPanel from './components/AutomationPanel';
 import { testGoogleMapsUrl } from './utils/googleMapsHelper';
 import { I18nProvider, useI18n } from './i18n';
 
@@ -16,6 +18,9 @@ if (typeof window !== 'undefined') {
 
 function AppContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('ONE');
+  const [showAutomation, setShowAutomation] = useState<boolean>(true);
+  const [oneWorkflowReady, setOneWorkflowReady] = useState<boolean>(false);
+  const [hapagWorkflowReady, setHapagWorkflowReady] = useState<boolean>(false);
   const { t, toggleLang } = useI18n();
 
   return (
@@ -49,9 +54,56 @@ function AppContent() {
         </div>
       </div>
       <div className="app-container">
-        {viewMode === 'ONE' && <RouteDashboard />}
-        {viewMode === 'HAPAG' && <HapagDashboard />}
-        {viewMode === 'SUMMARY' && <SummaryDashboard />}
+        <div style={{ marginBottom: '12px' }}>
+          <button
+            className="view-btn"
+            onClick={() => setShowAutomation((prev) => !prev)}
+          >
+            {showAutomation ? t('hideAutomationControl') : t('showAutomationControl')}
+          </button>
+        </div>
+        {showAutomation && (
+          <AutomationPanel
+            onWorkflowComplete={(jobType, success) => {
+              if (!success) return;
+              if (jobType === 'one_pipeline') setOneWorkflowReady(true);
+              if (jobType === 'hapag_pipeline') setHapagWorkflowReady(true);
+            }}
+          />
+        )}
+        {viewMode === 'ONE' && (
+          oneWorkflowReady ? (
+            <RouteDashboard />
+          ) : (
+            <div className="card">
+              <div className="empty-state">
+                {t('oneWorkflowReadyHint')}
+              </div>
+            </div>
+          )
+        )}
+        {viewMode === 'HAPAG' && (
+          hapagWorkflowReady ? (
+            <HapagDashboard />
+          ) : (
+            <div className="card">
+              <div className="empty-state">
+                {t('hapagWorkflowReadyHint')}
+              </div>
+            </div>
+          )
+        )}
+        {viewMode === 'SUMMARY' && (
+          oneWorkflowReady || hapagWorkflowReady ? (
+            <SummaryDashboard />
+          ) : (
+            <div className="card">
+              <div className="empty-state">
+                {t('summaryWorkflowReadyHint')}
+              </div>
+            </div>
+          )
+        )}
       </div>
       <ChatPanel />
     </div>

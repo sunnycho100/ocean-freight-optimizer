@@ -73,7 +73,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
           {/* Data Source Indicator */}
           <div className="data-source">
             <span className="data-source-label">{t('source')}:</span>
-            <span className="data-source-value">Excel (API)</span>
+            <span className="data-source-value">{t('sourceExcelApi')}</span>
           </div>
         </div>
       </div>

@@ -27,7 +27,8 @@ def main():
     
     # Initialize and run automation
     # Set headless=True to run without browser UI
-    runner = MainRunner(headless=False)
+    # keep_browser_open=False avoids a manual "Press Enter" blocker at the end.
+    runner = MainRunner(headless=False, keep_browser_open=False)
     
     # Print configuration stats
     stats = runner.get_stats()

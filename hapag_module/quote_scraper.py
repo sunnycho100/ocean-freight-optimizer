@@ -5,8 +5,7 @@ This module handles the quote search process, port selection,
 and opening price breakdown dialogs.
 """
 
-import time
-from typing import Dict, Any, Optional
+from typing import Dict
 from playwright.sync_api import Page
 
 
@@ -23,6 +22,34 @@ class QuoteScraper:
         """
         self.origin_port = origin_port
         self.origin_code = origin_code
+
+    def _wait_for_autocomplete(self, page: Page, timeout: int = 5000) -> bool:
+        """Wait for destination/origin autocomplete options to appear."""
+        selectors = [
+            "[role='listbox'] [role='option']",
+            "div[role='option']",
+            "li[role='option']",
+            "[data-testid*='option']",
+        ]
+        for selector in selectors:
+            try:
+                page.locator(selector).first.wait_for(state="visible", timeout=timeout)
+                return True
+            except Exception:
+                continue
+        return False
+
+    def _wait_for_price_breakdown_dialog(self, page: Page, timeout: int = 20000) -> bool:
+        """Wait for the Price Breakdown dialog content to be ready."""
+        try:
+            page.get_by_text("Import Surcharges").first.wait_for(state="visible", timeout=timeout)
+            return True
+        except Exception:
+            try:
+                page.get_by_role("row").first.wait_for(state="visible", timeout=timeout)
+                return True
+            except Exception:
+                return False
     
     def set_origin_port(self, page: Page, is_first_search: bool = True) -> bool:
         """
@@ -46,20 +73,18 @@ class QuoteScraper:
             start_input = page.get_by_test_id("start-input")
             start_input.click()
             start_input.fill(self.origin_port.lower())
-            time.sleep(2.5)  # Wait for autocomplete dropdown to populate
+            self._wait_for_autocomplete(page)
             
             # Select the correct port - prefer exact code match
             try:
                 exact_match = f"{self.origin_port} ({self.origin_code})"
                 page.get_by_text(exact_match).click()
-                time.sleep(1)
                 print(f"✅ Selected exact match: {exact_match}")
                 
             except:
                 print(f"⚠️ Could not find exact match, using arrow key selection")
                 start_input.press("ArrowDown")
                 start_input.press("Enter")
-                time.sleep(1)
             
             return True
             
@@ -85,7 +110,6 @@ class QuoteScraper:
             try:
                 clear_button = page.get_by_test_id("end-column").get_by_role("button", name="Clear")
                 clear_button.click()
-                time.sleep(0.5)
             except:
                 pass  # Clear button not found or not needed
         
@@ -105,16 +129,14 @@ class QuoteScraper:
                 
                 # Clear any previous input
                 end_input.fill("")
-                time.sleep(0.3)
                 
                 end_input.fill(code.lower())
-                time.sleep(1.5)  # Wait for autocomplete dropdown to populate
+                self._wait_for_autocomplete(page)
                 
                 # Try to click the exact match with location code
                 try:
                     exact_match = f"({code})"
                     page.get_by_text(exact_match).first.click()
-                    time.sleep(0.5)
                     print(f"✅ Selected destination with code: {code}")
                     return True
                     
@@ -123,7 +145,6 @@ class QuoteScraper:
                     try:
                         end_input.press("ArrowDown")
                         end_input.press("Enter")
-                        time.sleep(0.5)
                         print(f"✅ Selected destination using arrow key for code: {code}")
                         return True
                     except:
@@ -151,10 +172,8 @@ class QuoteScraper:
         print("🚚 Selecting 'Delivered to your Door'...")
         
         try:
-            time.sleep(0.5)
             delivery_radio = page.get_by_role("radio", name="Delivered to your Door (")
             delivery_radio.click()
-            time.sleep(0.5)
             
             print("✅ Delivery option selected")
             return True
@@ -192,12 +211,10 @@ class QuoteScraper:
             except:
                 # Fallback: try finding by partial text
                 print("   [RETRY] Trying alternative Price Breakdown button selector...")
-                time.sleep(3)
                 price_breakdown_btn = page.locator("button:has-text('Price Breakdown')").first
                 price_breakdown_btn.wait_for(state="visible", timeout=30000)
             
             print("   ✅ Price Breakdown button found!")
-            time.sleep(1)  # Brief pause to ensure page is stable
             
             return True
             
@@ -220,7 +237,8 @@ class QuoteScraper:
         try:
             price_breakdown_btn = page.get_by_role("button", name="Price Breakdown").first
             price_breakdown_btn.click()
-            time.sleep(3)  # Wait for dialog to fully load
+            if not self._wait_for_price_breakdown_dialog(page):
+                print("⚠️ Price Breakdown dialog opened but table readiness is uncertain")
             
             print("✅ Price Breakdown dialog opened")
             return True
@@ -241,7 +259,6 @@ class QuoteScraper:
         """
         try:
             page.keyboard.press("Escape")
-            time.sleep(1)
             return True
             
         except Exception as e:
@@ -261,9 +278,6 @@ class QuoteScraper:
         print("✏️ Starting new search...")
         
         try:
-            # Wait a bit for page to stabilize
-            time.sleep(2)
-            
             # Click Edit button with retry logic
             edit_button = page.get_by_role("button", name="Edit").first
             
@@ -278,7 +292,7 @@ class QuoteScraper:
             # Click "Edit Search" from dropdown
             edit_search_item = page.get_by_role("listitem").filter(has_text="Edit Search")
             edit_search_item.click()
-            time.sleep(1)
+            page.get_by_test_id("end-input").wait_for(state="visible", timeout=10000)
             
             print("✅ New search initiated")
             return True

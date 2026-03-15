@@ -11,9 +11,9 @@ interface RouteTableProps {
 }
 
 // POD estimation notes for ports with unavailable freight costs
-const POD_NOTES: Record<string, string> = {
-  'BREMERHAVEN, HB, GERMANY': '* estimation based on Hamburg, Germany (freight cost unavailable)',
-  'SALERNO, ITALY': '* estimated based on Naples, Italy (freight cost unavailable)',
+const POD_NOTE_KEYS: Record<string, 'podNoteBremerhaven' | 'podNoteSalerno'> = {
+  'BREMERHAVEN, HB, GERMANY': 'podNoteBremerhaven',
+  'SALERNO, ITALY': 'podNoteSalerno',
 };
 
 const formatRate = (rate: number): string => {
@@ -35,7 +35,7 @@ const RouteTable: React.FC<RouteTableProps> = ({
   const badgeClass = variant === 'worst' ? 'rank-badge rank-badge--worst' : 'rank-badge rank-badge--top';
 
   // Check if any routes have estimation notes
-  const routesWithNotes = routes.filter((route) => POD_NOTES[route.pod]);
+  const routesWithNotes = routes.filter((route) => POD_NOTE_KEYS[route.pod]);
 
   return (
     <div className={cardClass}>
@@ -67,7 +67,7 @@ const RouteTable: React.FC<RouteTableProps> = ({
                   </td>
                   <td>
                     {route.pod}
-                    {POD_NOTES[route.pod] && <span className="pod-note-marker"> *</span>}
+                    {POD_NOTE_KEYS[route.pod] && <span className="pod-note-marker"> *</span>}
                   </td>
                   {showRemarks ? (
                     <td style={{ maxWidth: 320, whiteSpace: 'pre-line', wordBreak: 'break-word' }}>{route.remarks || '-'}</td>
@@ -99,7 +99,7 @@ const RouteTable: React.FC<RouteTableProps> = ({
           <div className="table-notes">
             {routesWithNotes.map((route) => (
               <p key={route.pod} className="note-text">
-                {POD_NOTES[route.pod]}
+                {t(POD_NOTE_KEYS[route.pod])}
               </p>
             ))}
           </div>

@@ -16,17 +16,17 @@ interface RouteMapProps {
 const RouteMap: React.FC<RouteMapProps> = ({ pod, destination, rankLabel, variant = 'single' }) => {
   const { t } = useI18n();
   if (!pod || !destination) return null;
-  
+
   const mapsUrl = generateGoogleMapsDirectionsUrl(pod, destination);
   const embedUrl = generateGoogleMapsEmbedUrl(pod, destination);
   const cleanPod = cleanLocationString(pod);
   const cleanDest = cleanLocationString(destination);
   const isGrid = variant === 'grid';
-  
+
   const handleViewRoute = () => {
     window.open(mapsUrl, '_blank', 'noopener,noreferrer');
   };
-  
+
   return (
     <div className={`route-map-container ${isGrid ? 'route-map--grid' : ''}`}>
       <div className="route-info">
@@ -35,7 +35,7 @@ const RouteMap: React.FC<RouteMapProps> = ({ pod, destination, rankLabel, varian
           <div className="route-location">
             <span className="route-value">{cleanPod}</span>
           </div>
-          <div className="route-arrow">↓</div>
+          <div className="route-arrow">{'\u2193'}</div>
           <div className="route-location">
             <span className="route-value">{cleanDest}</span>
           </div>
@@ -44,7 +44,7 @@ const RouteMap: React.FC<RouteMapProps> = ({ pod, destination, rankLabel, varian
 
       <div className="map-embed-wrapper">
         <iframe
-          title={`Route from ${cleanPod} to ${cleanDest}`}
+          title={t('routeFromTo', { from: cleanPod, to: cleanDest })}
           src={embedUrl}
           className="map-embed"
           loading="lazy"
@@ -53,29 +53,27 @@ const RouteMap: React.FC<RouteMapProps> = ({ pod, destination, rankLabel, varian
         />
       </div>
 
-      <button 
+      <button
         className="btn-view-route btn-view-route--small"
         onClick={handleViewRoute}
         type="button"
       >
-        <svg 
-          width="16" 
-          height="16" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
           strokeWidth="2"
           style={{ marginRight: 6 }}
         >
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-          <circle cx="12" cy="10" r="3"/>
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+          <circle cx="12" cy="10" r="3" />
         </svg>
         {t('viewInGoogleMaps')}
       </button>
 
-      <p className="map-caption">
-        {t('mapsCaption')}
-      </p>
+      <p className="map-caption">{t('mapsCaption')}</p>
     </div>
   );
 };

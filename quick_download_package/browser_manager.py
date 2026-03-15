@@ -4,9 +4,30 @@ Handles browser initialization, setup, and lifecycle management.
 """
 
 import os
+import threading
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.driver_cache import DriverCacheManager
+
+_DRIVER_PATH = None
+_DRIVER_PATH_LOCK = threading.Lock()
+
+
+def _get_chromedriver_path():
+    """Resolve and cache ChromeDriver path for faster browser restarts."""
+    global _DRIVER_PATH
+
+    if _DRIVER_PATH and os.path.exists(_DRIVER_PATH):
+        return _DRIVER_PATH
+
+    with _DRIVER_PATH_LOCK:
+        if _DRIVER_PATH and os.path.exists(_DRIVER_PATH):
+            return _DRIVER_PATH
+        # Force webdriver-manager cache to a writable runtime folder.
+        cache_manager = DriverCacheManager(root_dir=os.getcwd())
+        _DRIVER_PATH = ChromeDriverManager(cache_manager=cache_manager).install()
+        return _DRIVER_PATH
 
 
 class BrowserManager:
@@ -28,7 +49,8 @@ class BrowserManager:
         
         # Configure SSL settings
         os.environ["WDM_SSL_VERIFY"] = "0"
-        os.environ["WDM_LOCAL"] = "1"
+        # Do not force WDM_LOCAL in frozen apps; it can resolve to invalid temp paths.
+        os.environ.pop("WDM_LOCAL", None)
     
     def setup_browser(self):
         """
@@ -54,7 +76,7 @@ class BrowserManager:
         options.add_argument("--ignore-certificate-errors")
         
         # Create driver
-        service = Service(ChromeDriverManager().install())
+        service = Service(_get_chromedriver_path())
         self.driver = webdriver.Chrome(service=service, options=options)
         
         print(">>> Browser initialized successfully")

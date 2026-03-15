@@ -21,16 +21,18 @@ from .excel_exporter import ExcelExporter
 class MainRunner:
     """Main automation workflow orchestrator."""
     
-    def __init__(self, headless: bool = False, base_dir: str = None):
+    def __init__(self, headless: bool = False, base_dir: str = None, keep_browser_open: bool = True):
         """
         Initialize MainRunner with all required components.
         
         Args:
             headless: Whether to run browser in headless mode
             base_dir: Base directory for configuration files
+            keep_browser_open: Keep browser open at the end for manual review
         """
         self.headless = headless
         self.base_dir = base_dir
+        self.keep_browser_open = keep_browser_open
         
         # Initialize all components
         self.config_loader = ConfigLoader(base_dir)
@@ -297,8 +299,9 @@ class MainRunner:
             # Step 9: Print final summary
             self._print_final_summary(successful_count)
             
-            # Step 10: Keep browser open for review
-            self.browser_manager.keep_browser_open()
+            # Step 10: Optionally keep browser open for manual review
+            if self.keep_browser_open:
+                self.browser_manager.keep_browser_open()
             
             return successful_count > 0
             
@@ -343,6 +346,7 @@ class MainRunner:
             "total_destinations": len(self.destinations),
             "excel_filename": self.excel_filename,
             "headless_mode": self.headless,
+            "keep_browser_open": self.keep_browser_open,
             "has_credentials": self.auth_manager.has_credentials(),
             "downloads_dir": self.excel_exporter.get_downloads_dir()
         }
